@@ -1,12 +1,24 @@
-import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart';
 import 'package:laundryapp/pages/edit_pelanggan.dart';
 
-class DetailPelanggan extends StatelessWidget {
+class DetailPelanggan extends StatefulWidget {
   final Map<String, dynamic> pelanggan;
 
   // Constructor dengan parameter required pelanggan
-  DetailPelanggan({required this.pelanggan});
+  const DetailPelanggan({Key? key, required this.pelanggan}) : super(key: key);
+
+  @override
+  State<DetailPelanggan> createState() => _DetailPelangganState();
+}
+
+class _DetailPelangganState extends State<DetailPelanggan> {
+  late Map<String, dynamic> pelanggan;
+
+  @override
+  void initState() {
+    super.initState();
+    pelanggan = widget.pelanggan; // Salin data pelanggan dari parameter awal
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -17,18 +29,29 @@ class DetailPelanggan extends StatelessWidget {
         elevation: 0,
         leading: IconButton(
           icon: const Icon(Icons.arrow_back),
-          onPressed: () => Navigator.pop(context),
+          onPressed: () {
+            print("Updated pelanggan before pop: $pelanggan");
+            Navigator.pop(context, pelanggan);
+          },
         ),
         actions: [
           IconButton(
             icon: const Icon(Icons.edit),
-            onPressed: () {
-              Navigator.push(
+            onPressed: () async {
+              // Navigasi ke halaman edit dan tunggu hasilnya
+              final updatedPelanggan = await Navigator.push(
                 context,
                 MaterialPageRoute(
-                  builder: (context) => EditPelanggan(pelanggan : pelanggan),
+                  builder: (context) => EditPelanggan(pelanggan: pelanggan),
                 ),
               );
+
+              // Jika ada data yang dikembalikan, perbarui state
+              if (updatedPelanggan != null) {
+                setState(() {
+                  pelanggan = updatedPelanggan;
+                });
+              }
             },
           ),
         ],
@@ -45,7 +68,7 @@ class DetailPelanggan extends StatelessWidget {
                   const CircleAvatar(
                     radius: 50, // Menyesuaikan ukuran avatar
                     backgroundColor:
-                        Colors.grey, // Memberikan warna latar belakang
+                    Colors.grey, // Memberikan warna latar belakang
                     child: Icon(
                       Icons.person,
                       size: 50, // Ukuran ikon
@@ -54,10 +77,11 @@ class DetailPelanggan extends StatelessWidget {
                   ),
                   const SizedBox(height: 10), // Jarak antara avatar dan nama
                   Text(
-                    pelanggan["name"] ??
-                        "Nama Tidak Tersedia", // Menampilkan nama pelanggan
+                    pelanggan["name"] ?? "Nama Tidak Tersedia",
                     style: const TextStyle(
-                        fontSize: 20, fontWeight: FontWeight.bold),
+                      fontSize: 20,
+                      fontWeight: FontWeight.bold,
+                    ),
                   ),
                 ],
               ),

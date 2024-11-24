@@ -1,11 +1,24 @@
-import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart';
 import 'package:laundryapp/pages/edit_layanan.dart';
 
-class DetailLayanan extends StatelessWidget {
+class DetailLayanan extends StatefulWidget {
   final Map<String, dynamic> layanan;
 
-  DetailLayanan({required this.layanan});
+  // Constructor dengan parameter required layanan
+  const DetailLayanan({Key? key, required this.layanan}) : super(key: key);
+
+  @override
+  State<DetailLayanan> createState() => _DetailLayananState();
+}
+
+class _DetailLayananState extends State<DetailLayanan> {
+  late Map<String, dynamic> layanan;
+
+  @override
+  void initState() {
+    super.initState();
+    layanan = widget.layanan; // Salin data pelanggan dari parameter awal
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -16,18 +29,29 @@ class DetailLayanan extends StatelessWidget {
         elevation: 0,
         leading: IconButton(
           icon: const Icon(Icons.arrow_back),
-          onPressed: () => Navigator.pop(context),
+          onPressed: () {
+            print("Updated pelanggan before pop: $layanan");
+            Navigator.pop(context, layanan);
+          },
         ),
         actions: [
           IconButton(
             icon: const Icon(Icons.edit),
-            onPressed: () {
-              Navigator.push(
+            onPressed: () async {
+              // Navigasi ke halaman edit dan tunggu hasilnya
+              final updatedLayanan = await Navigator.push(
                 context,
                 MaterialPageRoute(
-                  builder: (context) => EditLayanan(layanan : layanan),
+                  builder: (context) => EditLayanan(layanan: layanan),
                 ),
               );
+
+              // Jika ada data yang dikembalikan, perbarui state
+              if (updatedLayanan != null) {
+                setState(() {
+                  layanan = updatedLayanan;
+                });
+              }
             },
           ),
         ],
@@ -41,27 +65,27 @@ class DetailLayanan extends StatelessWidget {
               child: Column(
                 children: [
                   const CircleAvatar(
-                    radius: 50, // Ukuran avatar
-                    backgroundColor: Colors.grey, // Warna latar belakang
+                    radius: 50,
+                    backgroundColor: Colors.grey,
                     child: Icon(
                       Icons.local_laundry_service,
-                      size: 50, // Ukuran ikon
-                      color: Colors.white, // Warna ikon
+                      size: 50,
+                      color: Colors.white,
                     ),
                   ),
-                  const SizedBox(height: 10), // Jarak antara avatar dan nama
-
+                  const SizedBox(height: 10),
                   Text(
                     layanan["name"] ?? "Nama Tidak Tersedia",
                     style: const TextStyle(
-                      fontSize: 20,
+                      fontSize: 22,
                       fontWeight: FontWeight.bold,
+                      color: Colors.black,
                     ),
                   ),
                 ],
               ),
             ),
-            const SizedBox(height: 20), // Jarak antara nama dan informasi lainnya
+            const SizedBox(height: 20),
 
             RichText(
               text: TextSpan(
@@ -72,7 +96,7 @@ class DetailLayanan extends StatelessWidget {
                     style: TextStyle(fontWeight: FontWeight.bold),
                   ),
                   TextSpan(
-                    text: "${layanan["price"] ?? 'Tidak Ada Harga'}",
+                    text: "Rp. ${layanan["price"] ?? 'Tidak Ada Harga'}",
                     style: const TextStyle(fontSize: 18),
                   ),
                 ],
@@ -106,7 +130,7 @@ class DetailLayanan extends StatelessWidget {
                     style: TextStyle(fontWeight: FontWeight.bold),
                   ),
                   TextSpan(
-                    text: layanan["description"] ?? 'Tidak Ada Deskripsi',
+                    text: "${layanan["description"] ?? 'Tidak Ada Deskripsi'}",
                     style: const TextStyle(fontSize: 18),
                   ),
                 ],

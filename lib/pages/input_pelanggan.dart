@@ -1,6 +1,9 @@
 import 'package:flutter/material.dart';
-import 'package:laundryapp/pages/input_detail_pelanggan.dart';
+import 'package:shared_preferences/shared_preferences.dart';
+import '../database/db_helper.dart';
+import '../models/pelanggan_model.dart';
 import 'detail_pelanggan.dart';
+import 'input_detail_pelanggan.dart';
 
 class InputPelanggan extends StatefulWidget {
   const InputPelanggan({super.key});
@@ -10,42 +13,47 @@ class InputPelanggan extends StatefulWidget {
 }
 
 class _InputPelangganState extends State<InputPelanggan> {
-  List<Map<String, String>> pelangganList = [
-    {"name": "John Doe", "phone": "0812345678", "address": "Jl. Merdeka No.1"},
-    {
-      "name": "Jane Smith",
-      "phone": "0812345679",
-      "address": "Jl. Kebon Jeruk No.2"
-    },
-    {
-      "name": "Alice Johnson",
-      "phone": "0812345680",
-      "address": "Jl. Pahlawan No.3"
-    },
-    {
-      "name": "Bob Brown",
-      "phone": "0812345681",
-      "address": "Jl. Sejahtera No.4"
-    },
-    // Daftar pelanggan lainnya...
-  ];
-
-  List<Map<String, String>> filteredPelangganList = [];
+  List<Pelanggan> pelangganList = [];
+  List<Pelanggan> filteredPelangganList = [];
   TextEditingController searchController = TextEditingController();
 
   @override
   void initState() {
     super.initState();
-    filteredPelangganList = pelangganList;
+    _loadPelanggan();
+  }
+
+  Future<void> _loadPelanggan() async {
+    SharedPreferences prefs = await SharedPreferences.getInstance();
+    int? userId = prefs.getInt('userId');
+
+    if (userId != null) {
+      final data = await DatabaseHelper().getAllPelanggan(userId);
+      setState(() {
+        pelangganList = data;
+        filteredPelangganList = data;
+      });
+    }
   }
 
   void searchPelanggan(String query) {
     setState(() {
       filteredPelangganList = pelangganList
-          .where((pelanggan) =>
-              pelanggan["name"]!.toLowerCase().contains(query.toLowerCase()))
+          .where((pelanggan) => pelanggan.namaPelanggan
+              .toLowerCase()
+              .contains(query.toLowerCase()))
           .toList();
     });
+  }
+
+  Map<String, dynamic> convertPelangganToMap(Pelanggan pelanggan) {
+    return {
+      "id": pelanggan.id,
+      "name": pelanggan.namaPelanggan,
+      "phone": pelanggan.nomorTelpon,
+      "address": pelanggan.alamat,
+      "userId": pelanggan.userId,
+    };
   }
 
   @override
@@ -57,9 +65,7 @@ class _InputPelangganState extends State<InputPelanggan> {
         elevation: 0,
         leading: IconButton(
           icon: const Icon(Icons.arrow_back),
-          onPressed: () {
-            Navigator.pop(context);
-          },
+          onPressed: () => Navigator.pop(context),
         ),
         actions: [
           IconButton(
@@ -70,7 +76,7 @@ class _InputPelangganState extends State<InputPelanggan> {
                 MaterialPageRoute(
                   builder: (context) => InputDetailPelanggan(),
                 ),
-              );
+              ).then((_) => _loadPelanggan());
             },
           ),
         ],
@@ -85,9 +91,7 @@ class _InputPelangganState extends State<InputPelanggan> {
                   const EdgeInsets.symmetric(vertical: 0.0, horizontal: 16.0),
               child: TextField(
                 controller: searchController,
-                onChanged: (value) {
-                  searchPelanggan(value);
-                },
+                onChanged: searchPelanggan,
                 decoration: InputDecoration(
                   hintText: "Cari nama pelanggan",
                   prefixIcon: const Icon(Icons.search),
@@ -99,59 +103,86 @@ class _InputPelangganState extends State<InputPelanggan> {
             ),
             const SizedBox(height: 10),
             Expanded(
-              child: ListView.builder(
-                itemCount: filteredPelangganList.length,
-                itemBuilder: (context, index) {
-                  return Column(
-                    children: [
-                      GestureDetector(
-                        onTap: () {
-                          Navigator.push(
-                            context,
-                            MaterialPageRoute(
-                              builder: (context) => DetailPelanggan(
-                                  pelanggan: filteredPelangganList[index]),
-                            ),
-                          );
-                        },
-                        child: ListTile(
-                          leading: const CircleAvatar(
-                            radius: 25,
-                            backgroundColor: Colors.blueAccent,
-                            child: Icon(Icons.person,
-                                size: 25, color: Colors.white),
-                          ),
-                          title: Text(filteredPelangganList[index]["name"]!),
-                          subtitle: Column(
-                            crossAxisAlignment: CrossAxisAlignment.start,
-                            children: [
-                              Text(
-                                "No. Telp: ${filteredPelangganList[index]["phone"]}",
-                                style: const TextStyle(fontSize: 12),
-                              ),
-                              Text(
-                                "Alamat: ${filteredPelangganList[index]["address"]}",
-                                style: const TextStyle(fontSize: 12),
-                              ),
-                            ],
-                          ),
-                          trailing: IconButton(
-                            onPressed: () {},
-                            icon: const Icon(
-                              Icons.delete,
-                              color: Colors.red,
-                            ),
-                          ),
+              child: filteredPelangganList.isEmpty
+                  ? Center(
+                      child: Text(
+                        "Belum ada data pelanggan",
+                        style: TextStyle(
+                          fontSize: 16,
+                          color: Colors.grey[600],
                         ),
                       ),
-                      const Divider(
-                        color: Colors.grey,
-                        thickness: 1,
-                      ),
-                    ],
-                  );
-                },
-              ),
+                    )
+                  : ListView.builder(
+                      itemCount: filteredPelangganList.length,
+                      itemBuilder: (context, index) {
+                        Pelanggan pelanggan = filteredPelangganList[index];
+                        return Column(
+                          children: [
+                            GestureDetector(
+                              onTap: () async {
+                                Map<String, dynamic> pelangganMap =
+                                    convertPelangganToMap(pelanggan);
+                                final updatedPelanggan = await Navigator.push(
+                                  context,
+                                  MaterialPageRoute(
+                                    builder: (context) => DetailPelanggan(
+                                        pelanggan: pelangganMap),
+                                  ),
+                                );
+
+                                if (updatedPelanggan != null) {
+                                  setState(() {
+                                    // Update pelanggan di daftar
+                                    final index = pelangganList.indexWhere(
+                                        (pelanggan) =>
+                                            pelanggan.id ==
+                                            updatedPelanggan['id']);
+                                    if (index != -1) {
+                                      pelangganList[index] = Pelanggan(
+                                        id: updatedPelanggan['id'],
+                                        namaPelanggan: updatedPelanggan['name'],
+                                        nomorTelpon: updatedPelanggan['phone'],
+                                        alamat: updatedPelanggan['address'],
+                                        userId: updatedPelanggan['userId'],
+                                      );
+                                    }
+                                    // Sinkronkan pencarian
+                                    searchPelanggan(searchController.text);
+                                  });
+                                }
+                              },
+                              child: ListTile(
+                                leading: const CircleAvatar(
+                                  radius: 25,
+                                  backgroundColor: Colors.blue,
+                                  child: Icon(Icons.person,
+                                      size: 25, color: Colors.white),
+                                ),
+                                title: Text(pelanggan.namaPelanggan),
+                                subtitle: Column(
+                                  crossAxisAlignment: CrossAxisAlignment.start,
+                                  children: [
+                                    Text(
+                                      "No. Telp: ${pelanggan.nomorTelpon}",
+                                      style: const TextStyle(fontSize: 12),
+                                    ),
+                                    Text(
+                                      "Alamat: ${pelanggan.alamat}",
+                                      style: const TextStyle(fontSize: 12),
+                                    ),
+                                  ],
+                                ),
+                              ),
+                            ),
+                            const Divider(
+                              color: Colors.grey,
+                              thickness: 1,
+                            ),
+                          ],
+                        );
+                      },
+                    ),
             ),
           ],
         ),

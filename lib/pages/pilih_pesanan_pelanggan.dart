@@ -1,5 +1,7 @@
 import 'package:flutter/material.dart';
-
+import 'package:shared_preferences/shared_preferences.dart';
+import '../database/db_helper.dart';
+import '../models/pelanggan_model.dart';
 import 'input_detail_pelanggan.dart';
 
 class InputPesananPelanggan extends StatefulWidget {
@@ -10,28 +12,35 @@ class InputPesananPelanggan extends StatefulWidget {
 }
 
 class _InputPesananPelangganState extends State<InputPesananPelanggan> {
-  List<Map<String, String>> pelangganList = [
-    {"name": "John Doe", "phone": "0812345678", "address": "Jl. Merdeka No.1"},
-    {"name": "Jane Smith", "phone": "0812345679", "address": "Jl. Kebon Jeruk No.2"},
-    {"name": "Alice Johnson", "phone": "0812345680", "address": "Jl. Pahlawan No.3"},
-    {"name": "Bob Brown", "phone": "0812345681", "address": "Jl. Sejahtera No.4"},
-    // Daftar pelanggan lainnya...
-  ];
-
-  List<Map<String, String>> filteredPelangganList = [];
+  List<Pelanggan> pelangganList = [];
+  List<Pelanggan> filteredPelangganList = [];
   TextEditingController searchController = TextEditingController();
 
   @override
   void initState() {
     super.initState();
-    filteredPelangganList = pelangganList;
+    _loadPelanggan();
+  }
+
+  Future<void> _loadPelanggan() async {
+    SharedPreferences prefs = await SharedPreferences.getInstance();
+    int? userId = prefs.getInt('userId');
+
+    if (userId != null) {
+      final data = await DatabaseHelper().getAllPelanggan(userId);
+      setState(() {
+        pelangganList = data;
+        filteredPelangganList = data;
+      });
+    }
   }
 
   void searchPelanggan(String query) {
     setState(() {
       filteredPelangganList = pelangganList
-          .where((pelanggan) =>
-          pelanggan["name"]!.toLowerCase().contains(query.toLowerCase()))
+          .where((pelanggan) => pelanggan.namaPelanggan
+          .toLowerCase()
+          .contains(query.toLowerCase()))
           .toList();
     });
   }
@@ -58,7 +67,7 @@ class _InputPesananPelangganState extends State<InputPesananPelanggan> {
                 MaterialPageRoute(
                   builder: (context) => InputDetailPelanggan(),
                 ),
-              );
+              ).then((_) => _loadPelanggan());
             },
           ),
         ],
@@ -85,42 +94,66 @@ class _InputPesananPelangganState extends State<InputPesananPelanggan> {
               ),
             ),
             const SizedBox(height: 10),
-
-            // List layanan yang sudah difilter
             Expanded(
-              child: ListView.builder(
+              child: filteredPelangganList.isEmpty
+                  ? Center(
+                child: Text(
+                  "Belum ada data pelanggan",
+                  style: TextStyle(
+                    fontSize: 16,
+                    color: Colors.grey[600],
+                  ),
+                ),
+              )
+                  : ListView.builder(
                 itemCount: filteredPelangganList.length,
                 itemBuilder: (context, index) {
+                  Pelanggan pelanggan = filteredPelangganList[index];
                   return Column(
                     children: [
                       ListTile(
                         leading: const CircleAvatar(
                           radius: 25,
-                          backgroundColor: Colors.blueAccent,
-                          child: Icon(Icons.person, size: 25, color: Colors.white),
+                          backgroundColor: Colors.blue,
+                          child: Icon(Icons.person,
+                              size: 25, color: Colors.white),
                         ),
-                        title: Text(filteredPelangganList[index]["name"]!),
+                        title: Text(pelanggan.namaPelanggan),
                         subtitle: Column(
                           crossAxisAlignment: CrossAxisAlignment.start,
                           children: [
                             Text(
-                              "No. Telp: ${filteredPelangganList[index]["phone"]}",
+                              "No. Telp: ${pelanggan.nomorTelpon}",
                               style: const TextStyle(fontSize: 12),
                             ),
                             Text(
-                              "Alamat: ${filteredPelangganList[index]["address"]}",
+                              "Alamat: ${pelanggan.alamat}",
                               style: const TextStyle(fontSize: 12),
                             ),
                           ],
                         ),
                         trailing: OutlinedButton(
                           onPressed: () {
-                            Navigator.pop(context, filteredPelangganList[index]);
+                            final pelangganMap = {
+                              'id' : pelanggan.id,
+                              'namaPelanggan' : pelanggan.namaPelanggan,
+                              'nomorTelepon':pelanggan.nomorTelpon,
+                              'alamat' : pelanggan.alamat,
+                              'userId' : pelanggan.userId,
+                            };
+
+                            print(pelanggan.id);
+                            print(pelanggan.namaPelanggan);
+                            print(pelanggan.nomorTelpon);
+                            print(pelanggan.alamat);
+                            print(pelanggan.userId);
+
+                            Navigator.pop(context, pelangganMap);
                           },
                           style: OutlinedButton.styleFrom(
                             foregroundColor: Colors.white,
-                            backgroundColor: Colors.blueAccent,
-                            side: const BorderSide(color: Colors.blueAccent),
+                            backgroundColor: Colors.blue,
+                            side: const BorderSide(color: Colors.blue),
                           ),
                           child: const Text("Pilih Pelanggan",
                               style: TextStyle(color: Colors.white, fontSize: 12)),

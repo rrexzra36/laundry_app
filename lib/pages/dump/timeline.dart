@@ -1,252 +1,338 @@
-import 'dart:math';
-
-import 'package:flutter/material.dart';
-import 'package:timelines/timelines.dart';
-
-
-const kTileHeight = 50.0;
-
-const completeColor = Color(0xff5e6172);
-const inProgressColor = Color(0xff5ec792);
-const todoColor = Color(0xffd1d2d7);
-
-class ProcessTimelinePage extends StatefulWidget {
-  @override
-  _ProcessTimelinePageState createState() => _ProcessTimelinePageState();
-}
-
-class _ProcessTimelinePageState extends State<ProcessTimelinePage> {
-  int _processIndex = 2;
-
-  Color getColor(int index) {
-    if (index == _processIndex) {
-      return inProgressColor;
-    } else if (index < _processIndex) {
-      return completeColor;
-    } else {
-      return todoColor;
-    }
-  }
-
-  @override
-  Widget build(BuildContext context) {
-    return Scaffold(
-      backgroundColor: Colors.white,
-      appBar: AppBar(title: Text('Ini Timeline'),),
-      body: Timeline.tileBuilder(
-        theme: TimelineThemeData(
-          direction: Axis.horizontal,
-          connectorTheme: ConnectorThemeData(
-            space: 30.0,
-            thickness: 5.0,
-          ),
-        ),
-        builder: TimelineTileBuilder.connected(
-          connectionDirection: ConnectionDirection.before,
-          itemExtentBuilder: (_, __) =>
-          MediaQuery.of(context).size.width / _processes.length,
-          oppositeContentsBuilder: (context, index) {
-            return Padding(
-              padding: const EdgeInsets.only(bottom: 15.0),
-              child: Image.asset(
-                'assets/images/process_timeline/status${index + 1}.png',
-                width: 50.0,
-                color: getColor(index),
-              ),
-            );
-          },
-          contentsBuilder: (context, index) {
-            return Padding(
-              padding: const EdgeInsets.only(top: 15.0),
-              child: Text(
-                _processes[index],
-                style: TextStyle(
-                  fontWeight: FontWeight.bold,
-                  color: getColor(index),
-                ),
-              ),
-            );
-          },
-          indicatorBuilder: (_, index) {
-            var color;
-            var child;
-            if (index == _processIndex) {
-              color = inProgressColor;
-              child = Padding(
-                padding: const EdgeInsets.all(8.0),
-                child: CircularProgressIndicator(
-                  strokeWidth: 3.0,
-                  valueColor: AlwaysStoppedAnimation(Colors.white),
-                ),
-              );
-            } else if (index < _processIndex) {
-              color = completeColor;
-              child = Icon(
-                Icons.check,
-                color: Colors.white,
-                size: 15.0,
-              );
-            } else {
-              color = todoColor;
-            }
-
-            if (index <= _processIndex) {
-              return Stack(
-                children: [
-                  CustomPaint(
-                    size: Size(30.0, 30.0),
-                    painter: _BezierPainter(
-                      color: color,
-                      drawStart: index > 0,
-                      drawEnd: index < _processIndex,
-                    ),
-                  ),
-                  DotIndicator(
-                    size: 30.0,
-                    color: color,
-                    child: child,
-                  ),
-                ],
-              );
-            } else {
-              return Stack(
-                children: [
-                  CustomPaint(
-                    size: Size(15.0, 15.0),
-                    painter: _BezierPainter(
-                      color: color,
-                      drawEnd: index < _processes.length - 1,
-                    ),
-                  ),
-                  OutlinedDotIndicator(
-                    borderWidth: 4.0,
-                    color: color,
-                  ),
-                ],
-              );
-            }
-          },
-          connectorBuilder: (_, index, type) {
-            if (index > 0) {
-              if (index == _processIndex) {
-                final prevColor = getColor(index - 1);
-                final color = getColor(index);
-                List<Color> gradientColors;
-                if (type == ConnectorType.start) {
-                  gradientColors = [Color.lerp(prevColor, color, 0.5)!, color];
-                } else {
-                  gradientColors = [
-                    prevColor,
-                    Color.lerp(prevColor, color, 0.5)!
-                  ];
-                }
-                return DecoratedLineConnector(
-                  decoration: BoxDecoration(
-                    gradient: LinearGradient(
-                      colors: gradientColors,
-                    ),
-                  ),
-                );
-              } else {
-                return SolidLineConnector(
-                  color: getColor(index),
-                );
-              }
-            } else {
-              return null;
-            }
-          },
-          itemCount: _processes.length,
-        ),
-      ),
-      floatingActionButton: FloatingActionButton(
-        child: Icon(Icons.ac_unit),
-        onPressed: () {
-          setState(() {
-            _processIndex = (_processIndex + 1) % _processes.length;
-          });
-        },
-        backgroundColor: inProgressColor,
-      ),
-    );
-  }
-}
-
-/// hardcoded bezier painter
-/// TODO: Bezier curve into package component
-class _BezierPainter extends CustomPainter {
-  const _BezierPainter({
-    required this.color,
-    this.drawStart = true,
-    this.drawEnd = true,
-  });
-
-  final Color color;
-  final bool drawStart;
-  final bool drawEnd;
-
-  Offset _offset(double radius, double angle) {
-    return Offset(
-      radius * cos(angle) + radius,
-      radius * sin(angle) + radius,
-    );
-  }
-
-  @override
-  void paint(Canvas canvas, Size size) {
-    final paint = Paint()
-      ..style = PaintingStyle.fill
-      ..color = color;
-
-    final radius = size.width / 2;
-
-    var angle;
-    var offset1;
-    var offset2;
-
-    var path;
-
-    if (drawStart) {
-      angle = 3 * pi / 4;
-      offset1 = _offset(radius, angle);
-      offset2 = _offset(radius, -angle);
-      path = Path()
-        ..moveTo(offset1.dx, offset1.dy)
-        ..quadraticBezierTo(0.0, size.height / 2, -radius,
-            radius) // TODO connector start & gradient
-        ..quadraticBezierTo(0.0, size.height / 2, offset2.dx, offset2.dy)
-        ..close();
-
-      canvas.drawPath(path, paint);
-    }
-    if (drawEnd) {
-      angle = -pi / 4;
-      offset1 = _offset(radius, angle);
-      offset2 = _offset(radius, -angle);
-
-      path = Path()
-        ..moveTo(offset1.dx, offset1.dy)
-        ..quadraticBezierTo(size.width, size.height / 2, size.width + radius,
-            radius) // TODO connector end & gradient
-        ..quadraticBezierTo(size.width, size.height / 2, offset2.dx, offset2.dy)
-        ..close();
-
-      canvas.drawPath(path, paint);
-    }
-  }
-
-  @override
-  bool shouldRepaint(_BezierPainter oldDelegate) {
-    return oldDelegate.color != color ||
-        oldDelegate.drawStart != drawStart ||
-        oldDelegate.drawEnd != drawEnd;
-  }
-}
-
-final _processes = [
-  'Prospect',
-  'Tour',
-  'Offer',
-  'Contract',
-  'Settled',
-];
+// import 'package:flutter/material.dart';
+// import 'package:laundryapp/pages/konfirmasi_pesanan.dart';
+// import 'package:laundryapp/pages/pilih_pesanan_layanan.dart';
+//
+// class BuatPesanan extends StatefulWidget {
+//   @override
+//   State<BuatPesanan> createState() => _BuatPesananState();
+// }
+//
+// class _BuatPesananState extends State<BuatPesanan> {
+//   Map<String, String>? selectedPelanggan;
+//   Map<String, dynamic>? selectedLayanan;
+//
+//   double totalPrice = 0;
+//   double weight = 0;
+//
+//   @override
+//   Widget build(BuildContext context) {
+//     bool isButtonEnabled = selectedPelanggan != null &&
+//         selectedLayanan != null &&
+//         totalPrice != 0 &&
+//         weight != 0;
+//
+//     return Scaffold(
+//       appBar: AppBar(
+//         title: const Text("Buat Pesanan"),
+//         centerTitle: true,
+//         elevation: 0,
+//         leading: IconButton(
+//           icon: const Icon(Icons.arrow_back),
+//           onPressed: () {
+//             Navigator.pop(context);
+//           },
+//         ),
+//       ),
+//       body: Column(
+//         crossAxisAlignment: CrossAxisAlignment.start,
+//         children: [
+//           // Pelanggan Section
+//           Container(
+//             padding: const EdgeInsets.only(top: 16.0, left: 16.0, right: 16.0),
+//             child: Column(
+//               crossAxisAlignment: CrossAxisAlignment.start,
+//               children: [
+//                 const Text(
+//                   "Pelanggan",
+//                   style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
+//                 ),
+//                 Row(
+//                   mainAxisAlignment: MainAxisAlignment.spaceBetween,
+//                   children: [
+//                     const Column(
+//                       crossAxisAlignment: CrossAxisAlignment.start,
+//                       children: [
+//                         Text("Silahkan pilih pelanggan",
+//                             style: TextStyle(color: Colors.grey)),
+//                       ],
+//                     ),
+//                     OutlinedButton(
+//                       onPressed: () async {},
+//                       style: OutlinedButton.styleFrom(
+//                         foregroundColor: Colors.white,
+//                         backgroundColor: Colors.blue,
+//                         side: const BorderSide(color: Colors.blue),
+//                       ),
+//                       child: const Text("Pilih Pelanggan",
+//                           style: TextStyle(color: Colors.white)),
+//                     ),
+//                   ],
+//                 ),
+//                 if (selectedPelanggan != null) ...[
+//                   Card(
+//                     elevation: 0,
+//                     child: Container(
+//                       padding: const EdgeInsets.all(8),
+//                       child: ListTile(
+//                         leading: const CircleAvatar(
+//                           radius: 25,
+//                           backgroundColor: Colors.blue,
+//                           child:
+//                           Icon(Icons.person, size: 25, color: Colors.white),
+//                         ),
+//                         title: Text(selectedPelanggan!["name"]!),
+//                         subtitle: Column(
+//                           crossAxisAlignment: CrossAxisAlignment.start,
+//                           children: [
+//                             Text(
+//                               selectedPelanggan!["phone"]!,
+//                               style: const TextStyle(fontSize: 12),
+//                             ),
+//                             Text(
+//                               selectedPelanggan!["address"]!,
+//                               style: const TextStyle(fontSize: 12),
+//                             ),
+//                           ],
+//                         ),
+//                       ),
+//                     ),
+//                   ),
+//                 ],
+//               ],
+//             ),
+//           ),
+//
+//           // Layanan Section
+//           Container(
+//             padding: const EdgeInsets.all(16.0),
+//             child: Column(
+//               crossAxisAlignment: CrossAxisAlignment.start,
+//               children: [
+//                 const Text(
+//                   "Layanan",
+//                   style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
+//                 ),
+//                 Row(
+//                   mainAxisAlignment: MainAxisAlignment.spaceBetween,
+//                   children: [
+//                     const Column(
+//                       crossAxisAlignment: CrossAxisAlignment.start,
+//                       children: [
+//                         Text("Silahkan pilih layanan",
+//                             style: TextStyle(color: Colors.grey)),
+//                       ],
+//                     ),
+//                     OutlinedButton(
+//                       onPressed: () async {
+//                         final selectedData =
+//                         await Navigator.push<Map<String, dynamic>>(
+//                           context,
+//                           MaterialPageRoute(
+//                             builder: (context) => InputPesananLayanan(),
+//                           ),
+//                         );
+//
+//                         if (selectedData != null) {
+//                           setState(() {
+//                             selectedLayanan = selectedData;
+//                             totalPrice = selectedData['totalPrice'] ?? 0;
+//                             weight = selectedData['weight'] ?? 0;
+//                           });
+//                         }
+//                       },
+//                       style: OutlinedButton.styleFrom(
+//                         foregroundColor: Colors.white,
+//                         backgroundColor: Colors.blue,
+//                         side: const BorderSide(color: Colors.blue),
+//                       ),
+//                       child: const Text("Pilih Layanan",
+//                           style: TextStyle(color: Colors.white)),
+//                     ),
+//                   ],
+//                 ),
+//                 if (selectedLayanan != null) ...[
+//                   Card(
+//                     elevation: 0,
+//                     child: Container(
+//                       padding: const EdgeInsets.all(16),
+//                       child: Column(
+//                         crossAxisAlignment: CrossAxisAlignment.start,
+//                         children: [
+//                           Row(
+//                             mainAxisAlignment: MainAxisAlignment.spaceBetween,
+//                             children: [
+//                               Column(
+//                                 crossAxisAlignment: CrossAxisAlignment.start,
+//                                 children: [
+//                                   const Text(
+//                                     'Nama layanan',
+//                                     style: TextStyle(color: Colors.grey),
+//                                   ),
+//                                   Text(
+//                                     selectedLayanan!['layanan']['name'],
+//                                     style: const TextStyle(
+//                                         fontWeight: FontWeight.bold,
+//                                         fontSize: 14),
+//                                   ),
+//                                 ],
+//                               ),
+//                               const SizedBox(width: 20),
+//                               Column(
+//                                 crossAxisAlignment: CrossAxisAlignment.end,
+//                                 children: [
+//                                   const Text(
+//                                     'Harga',
+//                                     style: TextStyle(color: Colors.grey),
+//                                   ),
+//                                   Text(
+//                                     'Rp. ${selectedLayanan!['layanan']['price']}/kg',
+//                                     style: const TextStyle(
+//                                         fontWeight: FontWeight.bold,
+//                                         fontSize: 14),
+//                                   ),
+//                                 ],
+//                               ),
+//                             ],
+//                           ),
+//                           const SizedBox(height: 16),
+//                           Row(
+//                             mainAxisAlignment: MainAxisAlignment.spaceBetween,
+//                             children: [
+//                               Column(
+//                                 crossAxisAlignment: CrossAxisAlignment.start,
+//                                 children: [
+//                                   const Text(
+//                                     'Jenis layanan',
+//                                     style: TextStyle(color: Colors.grey),
+//                                   ),
+//                                   Text(
+//                                     selectedLayanan!['layanan']['type'],
+//                                     style: const TextStyle(
+//                                         fontWeight: FontWeight.bold,
+//                                         fontSize: 14),
+//                                   ),
+//                                 ],
+//                               ),
+//                               Column(
+//                                 crossAxisAlignment: CrossAxisAlignment.end,
+//                                 children: [
+//                                   const Text(
+//                                     'Estimasi pengerjaan',
+//                                     style: TextStyle(color: Colors.grey),
+//                                   ),
+//                                   Text(
+//                                     '${selectedLayanan!['layanan']['duration']} ${selectedLayanan!['layanan']['time']}',
+//                                     style: const TextStyle(
+//                                         fontWeight: FontWeight.bold,
+//                                         fontSize: 14),
+//                                   ),
+//                                 ],
+//                               ),
+//                             ],
+//                           ),
+//                           Divider(
+//                             color: Colors.grey[300],
+//                             height: 20,
+//                           ),
+//                           Row(
+//                             mainAxisAlignment: MainAxisAlignment.spaceBetween,
+//                             children: [
+//                               const Text(
+//                                 'Kuantitas',
+//                                 style: TextStyle(
+//                                     fontWeight: FontWeight.bold, fontSize: 14),
+//                               ),
+//                               Text(
+//                                 '${weight.toInt()} kg',
+//                                 style: const TextStyle(
+//                                     fontWeight: FontWeight.bold, fontSize: 14),
+//                               ),
+//                             ],
+//                           ),
+//                           Divider(color: Colors.grey[300], height: 20),
+//                           const SizedBox(height: 16),
+//                           Row(
+//                             mainAxisAlignment: MainAxisAlignment.spaceBetween,
+//                             children: [
+//                               const Text(
+//                                 'Total',
+//                                 style: TextStyle(
+//                                     fontSize: 20, fontWeight: FontWeight.bold),
+//                               ),
+//                               Text(
+//                                 'Rp. ${selectedLayanan!['totalPrice'].toInt()}',
+//                                 style: const TextStyle(
+//                                     fontSize: 20, fontWeight: FontWeight.bold),
+//                               ),
+//                             ],
+//                           ),
+//                         ],
+//                       ),
+//                     ),
+//                   ),
+//                 ],
+//               ],
+//             ),
+//           ),
+//           const Spacer(),
+//
+//           Container(
+//             padding: const EdgeInsets.all(16.0),
+//             color: Colors.white,
+//             child: Column(
+//               children: [
+//                 Row(
+//                   mainAxisAlignment: MainAxisAlignment.end,
+//                   children: [
+//                     const Text(
+//                       'Total',
+//                       style: TextStyle(fontSize: 16, color: Colors.grey),
+//                     ),
+//                     const SizedBox(width: 10),
+//                     Text(
+//                       'Rp. ${selectedLayanan?['totalPrice']?.toInt() ?? 0}',
+//                       style: const TextStyle(
+//                           fontSize: 16, fontWeight: FontWeight.bold),
+//                     ),
+//                   ],
+//                 ),
+//                 const SizedBox(height: 16),
+//                 SizedBox(
+//                   width: double.infinity,
+//                   child: ElevatedButton(
+//                     style: ElevatedButton.styleFrom(
+//                       padding: const EdgeInsets.all(15),
+//                       backgroundColor: isButtonEnabled
+//                           ? Colors.blue
+//                           : Colors.grey, // Warna tombol grey jika tidak aktif
+//                     ),
+//                     onPressed: isButtonEnabled
+//                         ? () {
+//                       Navigator.push(
+//                         context,
+//                         MaterialPageRoute(
+//                           builder: (context) => KonfirmasiPesanan(
+//                             // selectedPelanggan: selectedPelanggan!,
+//                             // selectedLayanan: selectedLayanan!,
+//                             // totalPrice: totalPrice,
+//                             // weight: weight,
+//                           ),
+//                         ),
+//                       );
+//                     }
+//                         : null, // Tidak aktifkan tombol jika tidak memenuhi kondisi
+//                     child: const Text(
+//                       'LANJUTKAN',
+//                       style:
+//                       TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
+//                     ),
+//                   ),
+//                 ),
+//               ],
+//             ),
+//           ),
+//         ],
+//       ),
+//     );
+//   }
+// }

@@ -1,19 +1,13 @@
-import 'package:curved_navigation_bar/curved_navigation_bar.dart';
 import 'package:flutter/material.dart';
-import 'package:flutter_screenutil/flutter_screenutil.dart';
-import 'package:google_fonts/google_fonts.dart';
+import 'package:intl/intl.dart';
 import 'package:laundryapp/pages/buat_pesanan.dart';
 import 'package:laundryapp/pages/input_layanan.dart';
 import 'package:laundryapp/pages/input_pelanggan.dart';
 import 'package:shared_preferences/shared_preferences.dart';
-
+import '../database/db_helper.dart';
 import '../utils/constants.dart';
-import '../widgets/latest_orders.dart';
-import '../widgets/location_slider.dart';
 
 class Dashboard extends StatefulWidget {
-  const Dashboard({super.key});
-
   @override
   _DashboardState createState() => _DashboardState();
 }
@@ -21,6 +15,38 @@ class Dashboard extends StatefulWidget {
 class _DashboardState extends State<Dashboard> {
   // Track active index
   int activeIndex = 0;
+  int? _totalPendapatan;
+  final DatabaseHelper _databaseHelper =
+      DatabaseHelper(); // Inisialisasi DatabaseHelper
+  String fullName = ""; // Variabel untuk menyimpan fullName
+
+  @override
+  void initState() {
+    super.initState();
+    getFullNameFromPreferences(); // Ambil fullName saat widget diinisialisasi
+    _calculatePendapatan();
+  }
+
+  Future<void> _calculatePendapatan() async {
+    SharedPreferences prefs = await SharedPreferences.getInstance();
+    int? userId = prefs.getInt('userId');
+
+    // Ambil total pendapatan dari database
+    int total = await _databaseHelper.getTotalPendapatan(userId!.toInt());
+    setState(() {
+      _totalPendapatan = total;
+    });
+  }
+
+  Future<void> getFullNameFromPreferences() async {
+    SharedPreferences prefs = await SharedPreferences.getInstance();
+    String? storedFullName = prefs.getString('fullName');
+    if (storedFullName != null) {
+      setState(() {
+        fullName = storedFullName; // Perbarui nilai fullName
+      });
+    }
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -70,7 +96,9 @@ class _DashboardState extends State<Dashboard> {
                                     ),
                               ),
                               TextSpan(
-                                text: "Nama User",
+                                text: fullName.isNotEmpty
+                                    ? fullName
+                                    : "User", // Tampilkan fullName,
                                 style: Theme.of(context)
                                     .textTheme
                                     .titleLarge
@@ -123,30 +151,30 @@ class _DashboardState extends State<Dashboard> {
                         decoration: BoxDecoration(
                             color: Colors.blue,
                             borderRadius: BorderRadius.circular(30.0)),
-                        child: const Row(
+                        child: Row(
                           mainAxisAlignment: MainAxisAlignment.spaceEvenly,
                           children: [
                             Column(
                               mainAxisAlignment: MainAxisAlignment.center,
-                              crossAxisAlignment: CrossAxisAlignment.start,
                               children: [
-                                Text(
+                                const Text(
                                   "Pendapatan Hari Ini",
                                   style: TextStyle(
                                       color: Colors.white, fontSize: 15),
                                 ),
                                 Row(
-                                  mainAxisAlignment: MainAxisAlignment.start,
                                   children: [
                                     Icon(
                                       Icons.arrow_downward,
-                                      color: Colors.greenAccent,
                                       size: 25,
+                                      color: Colors.greenAccent,
                                     ),
-                                    SizedBox(width: 5),
+                                    const SizedBox(width: 5,),
                                     Text(
-                                      "Rp. 28.000",
-                                      style: TextStyle(
+                                      _totalPendapatan == null
+                                          ? 'Rp 0'
+                                          : 'Rp ${NumberFormat("#,##0", "id_ID").format(_totalPendapatan)}',
+                                      style: const TextStyle(
                                         color: Colors.white,
                                         fontSize: 15,
                                       ),
@@ -155,17 +183,22 @@ class _DashboardState extends State<Dashboard> {
                                 )
                               ],
                             ),
-                            VerticalDivider(
+                            const VerticalDivider(
                               color: Colors.white, // warna garis
                               thickness: 1, // ketebalan garis
                               indent: 20, // jarak atas dari Divider
                               endIndent: 20, // jarak bawah dari Divider
                             ),
-                            Icon(
-                              Icons.refresh_rounded,
+                            IconButton(
+                              icon: const Icon(
+                                Icons.refresh_rounded,
+                                size: 30,
+                              ),
                               color: Colors.white,
-                              size: 30,
-                            )
+                              onPressed: () {
+                                _calculatePendapatan();
+                              },
+                            ),
                           ],
                         ),
                       ),
@@ -244,7 +277,8 @@ class _DashboardState extends State<Dashboard> {
                               Navigator.push(
                                   context,
                                   MaterialPageRoute(
-                                      builder: (context) => InputLayanan()));
+                                      builder: (context) =>
+                                          const InputLayanan()));
                             },
                             child: Container(
                               height: 100,

@@ -1,5 +1,9 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
+import 'package:shared_preferences/shared_preferences.dart';
+
+import '../database/db_helper.dart';
+import '../models/pelanggan_model.dart';
 
 class InputDetailPelanggan extends StatefulWidget {
   @override
@@ -102,26 +106,49 @@ class _InputDetailPelangganState extends State<InputDetailPelanggan> {
                   style: ElevatedButton.styleFrom(
                     minimumSize: const Size.fromHeight(50),
                   ),
-                  onPressed: () {
-                    // Fungsi untuk menyimpan data Pelanggan
-                    // Misalnya, Anda dapat mengambil data dari controller dan menambahkan logika penyimpanan di sini
-                    String namaPelanggan = namaPelangganController.text;
-                    String nomorTelpon = nomorTelponController.text;
-                    String alamat = alamatController.text;
+                  onPressed: () async {
+                    String namaPelanggan = namaPelangganController.text.trim();
+                    String nomorTelpon = nomorTelponController.text.trim();
+                    String alamat = alamatController.text.trim();
 
-                    // Menampilkan pesan atau melakukan sesuatu dengan data yang dimasukkan
+                    // Ambil userId dari SharedPreferences
+                    SharedPreferences prefs = await SharedPreferences.getInstance();
+                    int? userId = prefs.getInt('userId'); // Dapatkan userId
+
+                    if (userId == null) {
+                      ScaffoldMessenger.of(context).showSnackBar(
+                        const SnackBar(content: Text("User tidak ditemukan. Silakan login kembali.")),
+                      );
+                      return;
+                    }
+
                     if (namaPelanggan.isNotEmpty &&
                         nomorTelpon.isNotEmpty &&
                         alamat.isNotEmpty) {
-                      // Implementasikan penyimpanan data pelanggan di sini
-                      ScaffoldMessenger.of(context).showSnackBar(
-                        const SnackBar(
-                            content: Text("Data Pelanggan berhasil disimpan!")),
+                      Pelanggan pelanggan = Pelanggan(
+                        namaPelanggan: namaPelanggan,
+                        nomorTelpon: nomorTelpon,
+                        alamat: alamat,
+                        userId: userId, // Gunakan userId dari SharedPreferences
                       );
+
+                      try {
+                        await DatabaseHelper().tambahPelanggan(pelanggan);
+                        ScaffoldMessenger.of(context).showSnackBar(
+                          const SnackBar(content: Text("Data Pelanggan berhasil disimpan!")),
+                        );
+
+                        namaPelangganController.clear();
+                        nomorTelponController.clear();
+                        alamatController.clear();
+                      } catch (e) {
+                        ScaffoldMessenger.of(context).showSnackBar(
+                          SnackBar(content: Text("Gagal menyimpan data: $e")),
+                        );
+                      }
                     } else {
                       ScaffoldMessenger.of(context).showSnackBar(
-                        const SnackBar(
-                            content: Text("Mohon lengkapi semua data")),
+                        const SnackBar(content: Text("Mohon lengkapi semua data")),
                       );
                     }
                   },

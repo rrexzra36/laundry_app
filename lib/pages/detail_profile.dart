@@ -1,6 +1,52 @@
 import 'package:flutter/material.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 
-class DetailProfile extends StatelessWidget {
+import '../database/db_helper.dart';
+
+class DetailProfile extends StatefulWidget {
+  @override
+  State<DetailProfile> createState() => _DetailProfileState();
+}
+
+class _DetailProfileState extends State<DetailProfile> {
+  final DatabaseHelper _databaseHelper =
+  DatabaseHelper(); // Inisialisasi DatabaseHelper
+  String fullName = "";
+  String emailUser = "";
+
+  @override
+  void initState() {
+    super.initState();
+    getFullNameFromPreferences(); // Ambil fullName saat widget diinisialisasi
+    getEmailById();
+  }
+
+  Future<void> getFullNameFromPreferences() async {
+    SharedPreferences prefs = await SharedPreferences.getInstance();
+    String? storedFullName = prefs.getString('fullName');
+
+    if (storedFullName != null) {
+      setState(() {
+        fullName = storedFullName; // Perbarui nilai fullName
+      });
+    }
+  }
+
+  Future<void> getEmailById() async {
+    SharedPreferences prefs = await SharedPreferences.getInstance();
+    int? userId = prefs.getInt('userId');
+
+    String? email = await _databaseHelper.getEmailById(userId!.toInt());
+    if (email == null) {
+      print("Email tidak ditemukan untuk userId: $userId");
+      print(email);
+    } else {
+      setState(() {
+        emailUser = email;
+      });
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -27,11 +73,11 @@ class DetailProfile extends StatelessWidget {
             ),
             SizedBox(height: 10),
             Text(
-              'Ezra',
+              fullName.isNotEmpty ? fullName : "User",
               style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold),
             ),
             Text(
-              're.bimantara@gmail.com',
+              emailUser.toString().isNotEmpty ? emailUser : "Email",
               style: TextStyle(color: Colors.grey[600]),
             ),
             SizedBox(height: 8),

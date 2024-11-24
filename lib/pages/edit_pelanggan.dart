@@ -1,10 +1,13 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
+import 'package:laundryapp/models/pelanggan_model.dart';
+import 'package:shared_preferences/shared_preferences.dart';
+
+import '../database/db_helper.dart';
 
 class EditPelanggan extends StatefulWidget {
   final Map<String, dynamic> pelanggan;
 
-  // Constructor dengan parameter required pelanggan
   EditPelanggan({required this.pelanggan});
 
   @override
@@ -16,10 +19,11 @@ class _EditPelangganState extends State<EditPelanggan> {
   late TextEditingController editNomorTelponController;
   late TextEditingController editAlamatController;
 
+  final DatabaseHelper _dbHelper = DatabaseHelper();
+
   @override
   void initState() {
     super.initState();
-    // Menyimpan data awal pelanggan di controller
     editNamaPelangganController =
         TextEditingController(text: widget.pelanggan['name']);
     editNomorTelponController =
@@ -30,7 +34,6 @@ class _EditPelangganState extends State<EditPelanggan> {
 
   @override
   void dispose() {
-    // Membersihkan controller saat widget dihancurkan
     editNamaPelangganController.dispose();
     editNomorTelponController.dispose();
     editAlamatController.dispose();
@@ -47,7 +50,9 @@ class _EditPelangganState extends State<EditPelanggan> {
         elevation: 0,
         leading: IconButton(
           icon: const Icon(Icons.arrow_back),
-          onPressed: () => Navigator.pop(context),
+          onPressed: () async {
+            Navigator.pop(context);
+          },
         ),
       ),
       body: SingleChildScrollView(
@@ -56,7 +61,6 @@ class _EditPelangganState extends State<EditPelanggan> {
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              // TextField untuk Nama Pelanggan
               TextField(
                 controller: editNamaPelangganController,
                 decoration: const InputDecoration(
@@ -67,8 +71,6 @@ class _EditPelangganState extends State<EditPelanggan> {
                 ),
               ),
               const SizedBox(height: 16),
-
-              // TextField untuk Nomor Telepon
               TextField(
                 controller: editNomorTelponController,
                 keyboardType: TextInputType.number,
@@ -84,7 +86,6 @@ class _EditPelangganState extends State<EditPelanggan> {
                 ),
               ),
               const SizedBox(height: 5),
-
               Container(
                 padding: const EdgeInsets.only(left: 10),
                 child: const Text(
@@ -93,8 +94,6 @@ class _EditPelangganState extends State<EditPelanggan> {
                 ),
               ),
               const SizedBox(height: 16),
-
-              // TextField untuk Alamat
               TextField(
                 controller: editAlamatController,
                 maxLength: 200,
@@ -103,45 +102,74 @@ class _EditPelangganState extends State<EditPelanggan> {
                   prefixIcon: Icon(Icons.location_on_outlined),
                   labelText: "Alamat",
                   border: OutlineInputBorder(),
-                  counterText: '', // Menyembunyikan counter bawaan
+                  counterText: '',
                 ),
               ),
               const SizedBox(height: 25),
-
-              // Tombol untuk menyimpan data Pelanggan
               Center(
                 child: ElevatedButton(
                   style: ElevatedButton.styleFrom(
                     minimumSize: const Size.fromHeight(50),
                   ),
-                  onPressed: () {
-                    // Mengambil data dari controller
+                  onPressed: () async {
+                    SharedPreferences prefs = await SharedPreferences.getInstance();
+                    int? userId = prefs.getInt('userId'); // Dapatkan userId
+
                     String editNamaPelanggan = editNamaPelangganController.text;
                     String editNomorTelpon = editNomorTelponController.text;
                     String editAlamat = editAlamatController.text;
 
-                    // Validasi data
                     if (editNamaPelanggan.isNotEmpty &&
                         editNomorTelpon.isNotEmpty &&
                         editAlamat.isNotEmpty) {
-                      // Mengirim data yang diperbarui kembali ke halaman sebelumnya
-                      Navigator.pop(context, {
-                        'name': editNamaPelanggan,
-                        'phone': editNomorTelpon,
-                        'address': editAlamat,
-                      });
+                      try {
+                        final updatedPelanggan = Pelanggan(
+                          id: widget.pelanggan['id'],
+                          namaPelanggan: editNamaPelanggan,
+                          nomorTelpon: editNomorTelpon,
+                          alamat: editAlamat,
+                          userId: userId!.toInt(),
+                        );
+                        await _dbHelper.updatePelanggan(updatedPelanggan);
 
-                      ScaffoldMessenger.of(context).showSnackBar(
-                        SnackBar(
-                          backgroundColor: Colors.green,
-                          content: const Text("Data Pelanggan berhasil diperbarui!"),
-                          behavior: SnackBarBehavior.floating, // Membuat snackbar melayang
-                          margin: const EdgeInsets.symmetric(horizontal: 10, vertical: 10), // Margin untuk posisi
-                          shape: RoundedRectangleBorder(
-                            borderRadius: BorderRadius.circular(10),
-                          ), // Menambahkan sudut melengkung
-                        ),
-                      );
+                        // Data pelanggan diperbarui
+                        final updatedPelangganFix = {
+                          'id': widget.pelanggan['id'],
+                          'name': editNamaPelangganController.text,
+                          'phone': editNomorTelponController.text,
+                          'address': editAlamatController.text,
+                          'userId': userId!.toInt(),
+                        };
+                        Navigator.pop(context, updatedPelangganFix);
+
+                        ScaffoldMessenger.of(context).showSnackBar(
+                          SnackBar(
+                            backgroundColor: Colors.green,
+                            content: const Text(
+                              "Data Pelanggan berhasil diperbarui!",
+                            ),
+                            behavior: SnackBarBehavior.floating,
+                            margin: const EdgeInsets.symmetric(horizontal: 10, vertical: 10),
+                            shape: RoundedRectangleBorder(
+                              borderRadius: BorderRadius.circular(10),
+                            ),
+                          ),
+                        );
+                      } catch (e) {
+                        print("ID: ${widget.pelanggan['id']}, UserID: ${widget.pelanggan['userId']}");
+                        print(e);
+                        ScaffoldMessenger.of(context).showSnackBar(
+                          SnackBar(
+                            backgroundColor: Colors.red,
+                            content: Text("Gagal memperbarui data: $e"),
+                            behavior: SnackBarBehavior.floating,
+                            margin: const EdgeInsets.symmetric(horizontal: 10, vertical: 10),
+                            shape: RoundedRectangleBorder(
+                              borderRadius: BorderRadius.circular(10),
+                            ),
+                          ),
+                        );
+                      }
                     } else {
                       ScaffoldMessenger.of(context).showSnackBar(
                         SnackBar(

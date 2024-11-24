@@ -56,17 +56,9 @@ Route<dynamic> _onGenerateRoute(RouteSettings settings) {
       return MaterialPageRoute(builder: (BuildContext context) {
         return Login();
       });
-    case "/dashboard":
-      return MaterialPageRoute(builder: (BuildContext context) {
-        return Dashboard();
-      });
     case "/single-order":
       return MaterialPageRoute(builder: (BuildContext context) {
         return SingleOrder();
-      });
-    case "/buat-pesanan":
-      return MaterialPageRoute(builder: (BuildContext context) {
-        return BuatPesanan();
       });
     default:
       return MaterialPageRoute(builder: (BuildContext context) {

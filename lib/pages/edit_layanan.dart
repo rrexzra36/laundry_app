@@ -1,5 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
+import 'package:laundryapp/models/layanan_model.dart';
+import 'package:shared_preferences/shared_preferences.dart';
+import '../database/db_helper.dart';
 
 class EditLayanan extends StatefulWidget {
   final Map<String, dynamic> layanan;
@@ -18,11 +21,12 @@ class _EditLayananState extends State<EditLayanan> {
   late TextEditingController durasiController;
   late TextEditingController deskripsiController;
 
+  final DatabaseHelper _dbHelper = DatabaseHelper();
+
   @override
   void initState() {
     super.initState();
     jenisLayanan = widget.layanan['type'];
-    print(jenisLayanan);
     satuanWaktu = widget.layanan['time'];
     namaLayananController = TextEditingController(text: widget.layanan['name']);
     hargaController = TextEditingController(text: widget.layanan['price'].toString());
@@ -49,7 +53,9 @@ class _EditLayananState extends State<EditLayanan> {
         elevation: 0,
         leading: IconButton(
           icon: const Icon(Icons.arrow_back),
-          onPressed: () => Navigator.pop(context),
+          onPressed: () async {
+            Navigator.pop(context);
+          },
         ),
       ),
       body: SingleChildScrollView(
@@ -66,11 +72,12 @@ class _EditLayananState extends State<EditLayanan> {
                   border: OutlineInputBorder(),
                 ),
                 value: jenisLayanan,  // Nilai yang dipilih
-                items: const [
-                  DropdownMenuItem(value: "kiloan", child: Text("Kiloan")),
-                  DropdownMenuItem(value: "satuan", child: Text("Satuan")),
-                  DropdownMenuItem(value: "paket", child: Text("Paket")),
-                ],
+                items: ['Kiloan', 'Satuan', 'Paket']
+                    .map((jenis) => DropdownMenuItem(
+                  value: jenis,
+                  child: Text(jenis),
+                ))
+                    .toList(),
                 onChanged: (value) {
                   print("Selected value: $value");
                   setState(() {
@@ -97,12 +104,13 @@ class _EditLayananState extends State<EditLayanan> {
                 ),
               ),
               const SizedBox(height: 16),
+
               TextField(
                 controller: hargaController,
                 keyboardType: TextInputType.number,
                 inputFormatters: [
                   FilteringTextInputFormatter.digitsOnly,
-                  _ThousandsSeparatorFormatter(),
+                  ThousandSeparatorFormatter(),
                   LengthLimitingTextInputFormatter(10),
                 ],
                 decoration: const InputDecoration(
@@ -138,10 +146,12 @@ class _EditLayananState extends State<EditLayanan> {
                         border: OutlineInputBorder(),
                       ),
                       value: satuanWaktu,
-                      items: const [
-                        DropdownMenuItem(value: "Hari", child: Text("Hari")),
-                        DropdownMenuItem(value: "Jam", child: Text("Jam")),
-                      ],
+                      items: ['Hari', 'Jam']
+                          .map((satuan) => DropdownMenuItem(
+                        value: satuan,
+                        child: Text(satuan),
+                      ))
+                          .toList(),
                       onChanged: (value) {
                         setState(() {
                           satuanWaktu = value;
@@ -160,6 +170,7 @@ class _EditLayananState extends State<EditLayanan> {
                 ),
               ),
               const SizedBox(height: 16),
+
               Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
@@ -199,40 +210,88 @@ class _EditLayananState extends State<EditLayanan> {
                   style: ElevatedButton.styleFrom(
                     minimumSize: const Size.fromHeight(50),
                   ),
-                  onPressed: () {
-                    String jenis = jenisLayanan ?? '';
-                    String namaLayanan = namaLayananController.text;
-                    String harga = hargaController.text;
-                    String durasi = durasiController.text;
-                    String satuan = satuanWaktu ?? '';
-                    String deskripsi = deskripsiController.text;
+                  onPressed: () async {
+                    SharedPreferences prefs = await SharedPreferences.getInstance();
+                    int? userId = prefs.getInt('userId'); // Get the userId from shared preferences
 
-                    if (jenis.isNotEmpty &&
-                        namaLayanan.isNotEmpty &&
-                        harga.isNotEmpty &&
-                        durasi.isNotEmpty &&
-                        satuan.isNotEmpty &&
-                        deskripsi.isNotEmpty) {
-                      Navigator.pop(context, {
-                        'type': jenis,
-                        'name': namaLayanan,
-                        'price': harga,
-                        'duration': durasi,
-                        'time': satuan,
-                        'description': deskripsi,
-                      });
-                      ScaffoldMessenger.of(context).showSnackBar(
-                        SnackBar(
-                          backgroundColor: Colors.green,
-                          content: const Text("Data layanan berhasil diperbarui!"),
-                          behavior: SnackBarBehavior.floating, // Membuat snackbar melayang
-                          margin: const EdgeInsets.symmetric(horizontal: 10, vertical: 10), // Margin untuk posisi
-                          shape: RoundedRectangleBorder(
-                            borderRadius: BorderRadius.circular(10),
+                    String editType = jenisLayanan.toString();
+                    String editName = namaLayananController.text;
+                    int editPrice = int.tryParse(hargaController.text.replaceAll('.', '').trim()) ?? 0;
+                    int editDuration = int.tryParse(durasiController.text) ?? 0;
+                    String editTime = satuanWaktu ?? '';
+                    String editDescription = deskripsiController.text;
+
+                    // Ensure all fields are filled before proceeding
+                    if (editType.isNotEmpty &&
+                        editName.isNotEmpty &&
+                        editPrice > 0 &&
+                        editDuration > 0 &&
+                        editTime.isNotEmpty) {
+                      try {
+                        final updatedLayanan = Layanan(
+                          id: widget.layanan['id'],
+                          jenisLayanan: editType,
+                          namaLayanan: editName,
+                          harga: editPrice,
+                          durasi: editDuration,
+                          satuanWaktu: editTime,
+                          deskripsi: editDescription,
+                          userId: userId!.toInt(), // Ensure userId is not null
+                        );
+                        // Call the database helper to update the Layanan record
+                        await _dbHelper.updateLayanan(updatedLayanan);
+
+                        final updatedLayananFix = {
+                          'id': widget.layanan['id'],
+                          'type': jenisLayanan,
+                          'name': namaLayananController.text,
+                          'price': int.tryParse(hargaController.text.replaceAll('.', '')) ?? 0,
+                          'duration': int.tryParse(durasiController.text),
+                          'time': satuanWaktu,
+                          'description': deskripsiController.text,
+                          'userId': userId!.toInt(),
+                        };
+
+                        print(widget.layanan['id']);
+                        print(jenisLayanan);
+                        print(namaLayananController.text);
+                        print(hargaController.text);
+                        print(durasiController.text);
+                        print(satuanWaktu);
+                        print(deskripsiController.text);
+
+                        Navigator.pop(context, updatedLayananFix);
+
+                        // Show success message
+                        ScaffoldMessenger.of(context).showSnackBar(
+                          SnackBar(
+                            backgroundColor: Colors.green,
+                            content: const Text("Data Layanan berhasil diperbarui!"),
+                            behavior: SnackBarBehavior.floating,
+                            margin: const EdgeInsets.symmetric(horizontal: 10, vertical: 10),
+                            shape: RoundedRectangleBorder(
+                              borderRadius: BorderRadius.circular(10),
+                            ),
                           ),
-                        ),
-                      );
+                        );
+                      } catch (e) {
+                        // Catch errors and show error message
+                        print("ID: ${widget.layanan['id']}, UserID: ${widget.layanan['userId']}");
+                        print(e);
+                        ScaffoldMessenger.of(context).showSnackBar(
+                          SnackBar(
+                            backgroundColor: Colors.red,
+                            content: Text("Gagal memperbarui data: $e"),
+                            behavior: SnackBarBehavior.floating,
+                            margin: const EdgeInsets.symmetric(horizontal: 10, vertical: 10),
+                            shape: RoundedRectangleBorder(
+                              borderRadius: BorderRadius.circular(10),
+                            ),
+                          ),
+                        );
+                      }
                     } else {
+                      // Show message if required fields are empty
                       ScaffoldMessenger.of(context).showSnackBar(
                         SnackBar(
                           content: const Text("Mohon lengkapi semua data"),
@@ -246,13 +305,13 @@ class _EditLayananState extends State<EditLayanan> {
                     }
                   },
                   child: const Row(
-                  mainAxisAlignment: MainAxisAlignment.center,
-                  children: [
-                    Icon(Icons.save),
-                    SizedBox(width: 5),
-                    Text("Simpan Layanan")
-                  ],
-                ),
+                    mainAxisAlignment: MainAxisAlignment.center,
+                    children: [
+                      Icon(Icons.save),
+                      SizedBox(width: 5),
+                      Text("Simpan Layanan")
+                    ],
+                  ),
                 ),
               ),
             ],
@@ -263,11 +322,13 @@ class _EditLayananState extends State<EditLayanan> {
   }
 }
 
-class _ThousandsSeparatorFormatter extends TextInputFormatter {
+class ThousandSeparatorFormatter extends TextInputFormatter {
   @override
   TextEditingValue formatEditUpdate(
-      TextEditingValue oldValue, TextEditingValue newValue) {
-    String newText = newValue.text.replaceAll(RegExp(r'[^0-9]'), '');
+      TextEditingValue oldValue,
+      TextEditingValue newValue,
+      ) {
+    String newText = newValue.text.replaceAll('.', ''); // Hapus titik lama
     String formattedText = _formatNumberWithDots(newText);
 
     return TextEditingValue(
@@ -278,7 +339,6 @@ class _ThousandsSeparatorFormatter extends TextInputFormatter {
 
   String _formatNumberWithDots(String number) {
     if (number.isEmpty) return '';
-
     StringBuffer buffer = StringBuffer();
     int count = 0;
 
@@ -289,7 +349,6 @@ class _ThousandsSeparatorFormatter extends TextInputFormatter {
       buffer.write(number[i]);
       count++;
     }
-
     return buffer.toString().split('').reversed.join('');
   }
 }

@@ -1,18 +1,31 @@
 import 'package:flutter/material.dart';
+import 'package:intl/intl.dart';
 import 'package:laundryapp/pages/bottom_navbar.dart';
+import 'package:url_launcher/url_launcher.dart';
 
-import 'dashboard.dart';
+import '../database/db_helper.dart';
 
 class RincianPesanan extends StatefulWidget {
+  final int pesananId;
+
+  const RincianPesanan({Key? key, required this.pesananId}) : super(key: key);
+
   @override
   State<RincianPesanan> createState() => _RincianPesananState();
 }
 
 class _RincianPesananState extends State<RincianPesanan> {
-  int _currentStage =
-      0; // 0: Diterima, 1: Diproses, 2: Siap diambil, 3: Selesai
-  late int
-      _selectedStage; // Temporarily store selected stage before confirmation
+  int _currentStage = 0; // Status awal pesanan
+  late Map<String, dynamic> _pesananData = {};
+  bool _isLoading = true; // Untuk menunggu data selesai diambil
+  late int _selectedStage;
+
+  @override
+  void initState() {
+    super.initState();
+    _fetchPesananData();
+  }
+
   final List<String> _stageMessagesTitle = [
     "Pesanan Diterima",
     "Pesanan Akan Diproses",
@@ -26,6 +39,39 @@ class _RincianPesananState extends State<RincianPesanan> {
     "Pesanan sudah selesai diproses/ dikerjakan dan sudah bisa diambil oleh pelanggan",
     "Status pembayarn akan diubah menjadi lunas dengan metode pembayaran tunai.\n\nPastikan pelanggan telah melakukan pembayaran",
   ];
+
+  // Fungsi untuk menentukan teks berdasarkan status
+  String _getStatusText(int status) {
+    switch (status) {
+      case 0:
+        return "Diterima";
+      case 1:
+        return "Dikerjakan";
+      case 2:
+        return "Siap Diambil";
+      case 3:
+        return "Selesai";
+      default:
+        return "Unknown";
+    }
+  }
+  
+  void launchWhatsApp() async {
+    String phone = "62${_pesananData['nomorTelpon']}";
+    String message = "Halo ${_pesananData['pelangganNama']}!👋,\n\nKami dari *_Laundree_* ingin menginformasikan bahwa pesanan laundry Anda ${_getStatusText(_pesananData['status'])}. Berikut detailnya:\n\n   🧾 Nota: ${_pesananData['nota']}\n   🧺 Status: ${_getStatusText(_pesananData['status'])}\n   💵 Total Pembayaran: Rp. ${NumberFormat("#,##0", "id_ID").format(_pesananData['totalHarga'])}\n   ⏰ Jam Operasional: 08.00 - 17.00 WIB\n\nJika ada pertanyaan atau memerlukan layanan tambahan, jangan ragu untuk menghubungi kami! Terima kasih telah menggunakan *_Laundree_*. 😊\n\n_Semoga hari Anda menyenangkan!_";
+
+    final Uri url = Uri.parse(
+        "https://wa.me/$phone?text=${Uri.encodeComponent(message)}");
+
+    try {
+      await launchUrl(
+        url,
+        mode: LaunchMode.externalApplication, // Membuka di browser eksternal
+      );
+    } catch (e) {
+      print("Gagal membuka WhatsApp: $e");
+    }
+  }
 
   void _onStageSelected(int stage) {
     if (stage < _currentStage) {
@@ -41,6 +87,21 @@ class _RincianPesananState extends State<RincianPesanan> {
       });
       _showBottomModal(
           _stageMessagesTitle[stage], _stageMessages[stage], stage);
+    }
+  }
+
+  Future<void> _updateStageInDatabase(int status) async {
+    try {
+      print('Id Pesanan : ${widget.pesananId}');
+      print('Status Pesanan : $status');
+      await DatabaseHelper().updatePesananById(widget.pesananId, status);
+      setState(() {
+        _currentStage = status; // Update UI setelah sukses
+      });
+    } catch (e) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text("Gagal memperbarui status pesanan: $e")),
+      );
     }
   }
 
@@ -86,18 +147,10 @@ class _RincianPesananState extends State<RincianPesanan> {
                       style: ElevatedButton.styleFrom(
                         padding: const EdgeInsets.symmetric(vertical: 16),
                       ),
-                      onPressed: () {
-                        setState(() {
-                          _currentStage = stage; // Update the stage only after button press
-                        });
-
-                        // If it's the "Selesai" state, show the completion dialog
-                        if (stage == 3) {
-                          Navigator.pop(context); // Close the bottom modal
-                          _showCompletionDialog();
-                        } else {
-                          Navigator.pop(context); // Close the modal for other stages
-                        }
+                      onPressed: () async {
+                        Navigator.pop(context); // Tutup modal
+                        await _updateStageInDatabase(stage); // Update database
+                        if (stage == 3) _showCompletionDialog(); // Jika selesai
                       },
                       icon: const Icon(Icons.check_circle),
                       label: const Text(
@@ -116,6 +169,77 @@ class _RincianPesananState extends State<RincianPesanan> {
     );
   }
 
+  void _showCompletionDialog() {
+    showDialog(
+      context: context,
+      barrierDismissible: false,
+      builder: (context) {
+        return AlertDialog(
+          title: const Icon(Icons.check_circle, color: Colors.green, size: 64),
+          content: const Column(
+            mainAxisSize: MainAxisSize.min,
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              Text(
+                "Pesanan Selesai",
+                style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
+              ),
+              SizedBox(height: 16),
+              Text(
+                "Pesanan Anda telah selesai diproses. Terima kasih!",
+                textAlign: TextAlign.center,
+              ),
+            ],
+          ),
+          actions: [
+            Container(
+              padding: const EdgeInsets.all(16.0),
+              width: double.infinity,
+              child: ElevatedButton.icon(
+                style: ElevatedButton.styleFrom(
+                  padding: const EdgeInsets.symmetric(vertical: 16),
+                ),
+                onPressed: () {
+                  Navigator.push(
+                    context,
+                    MaterialPageRoute(builder: (context) => BottomNavBar()),
+                  );
+                },
+                icon: const Icon(Icons.home, color: Colors.white),
+                label: const Text(
+                  'DASHBOARD',
+                  style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
+                ),
+              ),
+            ),
+          ],
+        );
+      },
+    );
+  }
+
+
+  Future<void> _fetchPesananData() async {
+    try {
+      Map<String, dynamic> data =
+      await DatabaseHelper().getPesananById(widget.pesananId);
+      setState(() {
+        _pesananData = data;
+        _currentStage = _pesananData['status'];
+        _isLoading = false;
+        print('Data pesanan: $data');
+      });
+    } catch (e) {
+      print('Error fetching pesanan data: $e');
+      setState(() {
+        _isLoading = false; // Hindari loading tanpa akhir
+      });
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('Gagal memuat data pesanan.')),
+      );
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -125,16 +249,25 @@ class _RincianPesananState extends State<RincianPesanan> {
         elevation: 0,
         leading: IconButton(
           icon: const Icon(Icons.arrow_back),
-          onPressed: () => Navigator.pop(context),
+          onPressed: () {
+            final updatedStatusFix = {
+              'status' : _pesananData['status'],
+            };
+            Navigator.pop(context, updatedStatusFix);
+          },
         ),
         actions: [
           IconButton(
             icon: const Icon(Icons.delete),
-            onPressed: () {},
+            onPressed: () {
+              // Implement delete functionality
+            },
           ),
         ],
       ),
-      body: Column(
+      body: _isLoading
+          ? const Center(child: CircularProgressIndicator())
+          : Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           const SizedBox(height: 16.0),
@@ -159,25 +292,22 @@ class _RincianPesananState extends State<RincianPesanan> {
           Row(
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
-              const Column(
+              Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
+                  const Text('Pelanggan', style: TextStyle(color: Colors.grey)),
                   Text(
-                    'Pelanggan',
-                    style: TextStyle(color: Colors.grey),
+                    _pesananData['pelangganNama'] ?? 'Nama tidak tersedia',
+                    style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 16),
                   ),
                   Text(
-                    'Bima',
-                    style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16),
-                  ),
-                  Text(
-                    '08816755293',
-                    style: TextStyle(fontSize: 14),
+                    _pesananData['nomorTelpon'] ?? 'Nama tidak tersedia',
+                    style: const TextStyle(fontSize: 14),
                   ),
                 ],
               ),
               OutlinedButton.icon(
-                onPressed: () {},
+                onPressed: launchWhatsApp,
                 icon: const Icon(Icons.phone, color: Colors.white),
                 label: const Text('Kirim Nota WA',
                     style: TextStyle(color: Colors.white)),
@@ -226,22 +356,22 @@ class _RincianPesananState extends State<RincianPesanan> {
               Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  Text('No Nota', style: TextStyle(color: Colors.grey),),
-                  Text('INV-12112024-001')
+                  const Text('No Nota', style: TextStyle(color: Colors.grey)),
+                  Text(_pesananData['nota'] ?? 'Nama tidak tersedia'),
                 ],
               ),
               Column(
                 crossAxisAlignment: CrossAxisAlignment.end,
                 children: [
-                  Text('Tanggal Pesanan', style: TextStyle(color: Colors.grey),),
-                  Text('12 Nov 2024 22:27'),
-                  SizedBox(height: 8),
-                  Text('Estimasi Selesai', style: TextStyle(color: Colors.grey),),
-                  Text('12 Nov 2024 22:27'),
+                  const Text('Tanggal Pesanan', style: TextStyle(color: Colors.grey)),
+                  Text(_pesananData['tanggalPesan'] ?? 'Nama tidak tersedia'),
+                  const SizedBox(height: 8),
+                  const Text('Estimasi Selesai', style: TextStyle(color: Colors.grey)),
+                  Text(_pesananData['tanggalSelesai'] ?? 'Nama tidak tersedia'),
                 ],
-              )
+              ),
             ],
-          )
+          ),
         ],
       ),
     );
@@ -252,52 +382,51 @@ class _RincianPesananState extends State<RincianPesanan> {
       width: MediaQuery.of(context).size.width,
       color: Colors.white,
       padding: const EdgeInsets.all(16.0),
-      child: const Column(
+      child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Text(
+          const Text(
             'Rincian Pesanan',
             style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16),
           ),
-          SizedBox(height: 8),
+          const SizedBox(height: 8),
           Row(
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
               Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  Text('Layanan', style: TextStyle(color: Colors.grey)),
-                  Text('Reguler (Kiloan)', style: TextStyle(fontSize: 14)),
+                  const Text('Layanan', style: TextStyle(color: Colors.grey)),
+                  Text(_pesananData['layanan'] ?? 'Nama tidak tersedia'),
                 ],
               ),
               Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  Text('Kuantitas', style: TextStyle(color: Colors.grey)),
-                  Text('3 kg x Rp 7.000', style: TextStyle(fontSize: 14)),
+                  const Text('Kuantitas', style: TextStyle(color: Colors.grey)),
+                  Text('${_pesananData['berat'] ?? 'Nama tidak tersedia'} kg x Rp. ${NumberFormat("#,##0", "id_ID").format(_pesananData['hargaLayanan'])}'),
                 ],
               ),
               Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  Text('Total', style: TextStyle(color: Colors.grey)),
-                  Text('Rp 21.000', style: TextStyle(fontSize: 14)),
+                  const Text('Total', style: TextStyle(color: Colors.grey)),
+                  Text('Rp. ${NumberFormat("#,##0", "id_ID").format(_pesananData['totalHarga'])}',),
                 ],
               ),
             ],
           ),
-          SizedBox(height: 8),
-          Divider(height: 32, thickness: 1),
+          const Divider(height: 32, thickness: 1),
           Row(
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
-              Text(
+              const Text(
                 'TOTAL BIAYA',
                 style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16),
               ),
               Text(
-                'Rp 21.000',
-                style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16),
+                'Rp. ${NumberFormat("#,##0", "id_ID").format(_pesananData['totalHarga'])}',
+                style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 16),
               ),
             ],
           ),
@@ -312,7 +441,7 @@ class _RincianPesananState extends State<RincianPesanan> {
         ElevatedButton(
           onPressed: () => _onStageSelected(stage),
           style: ElevatedButton.styleFrom(
-            primary: _currentStage >= stage ? Colors.blue : Colors.grey[300],
+            backgroundColor: _currentStage >= stage ? Colors.blue : Colors.grey[300],
             shape: const CircleBorder(),
           ),
           child: Icon(
@@ -327,7 +456,7 @@ class _RincianPesananState extends State<RincianPesanan> {
             fontSize: 12,
             color: _currentStage >= stage ? Colors.blue : Colors.grey,
             fontWeight:
-                _currentStage == stage ? FontWeight.bold : FontWeight.normal,
+            _currentStage == stage ? FontWeight.bold : FontWeight.normal,
           ),
         ),
       ],
@@ -336,62 +465,16 @@ class _RincianPesananState extends State<RincianPesanan> {
 
   Widget _buildStageLine(int stage) {
     return Expanded(
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.center,
-        children: [
-          Container(
-            height: 3,
-            color: _currentStage > stage ? Colors.blue : Colors.grey[300],
-          ),
-          SizedBox(height: 20,)
-        ],
-      )
-    );
-  }
-
-  void _showCompletionDialog() {
-    showDialog(
-      context: context,
-      barrierDismissible: false, // Prevent closing by tapping outside
-      builder: (context) {
-        return AlertDialog(
-          title: const Icon(Icons.check_circle, color: Colors.green, size: 64),
-          content: const Column(
-            mainAxisSize: MainAxisSize.min,
-            mainAxisAlignment: MainAxisAlignment.center,
-            children: [
-              Text(
-                "Pesanan Selesai",
-                style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
-              ),
-              SizedBox(height: 16),
-              Text("Pesanan Anda telah selesai diproses. Terima kasih!", textAlign: TextAlign.center,),
-            ],
-          ),
-          actions: [
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.center,
+          children: [
             Container(
-              padding: EdgeInsets.all(16.0),
-              width: double.infinity,
-              child: ElevatedButton.icon(
-                style: ElevatedButton.styleFrom(
-                  padding: const EdgeInsets.symmetric(vertical: 16),
-                ),
-                onPressed: () {
-                  Navigator.pop(context); // Close the dialog
-                  Navigator.pushReplacement(
-                    context,
-                    MaterialPageRoute(builder: (context) => BottomNavBar()), // Navigate to Dashboard
-                  );
-                },
-                icon: const Icon(Icons.home, color: Colors.white,),
-                label: const Text(
-                  'DASHBOARD', style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
-                ),
-              ),
-            )
+              height: 3,
+              color: _currentStage > stage ? Colors.blue : Colors.grey[300],
+            ),
+            SizedBox(height: 20,)
           ],
-        );
-      },
+        )
     );
   }
 }

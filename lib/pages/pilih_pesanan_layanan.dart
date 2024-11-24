@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
-import 'package:laundryapp/pages/dump/hitung_harga_layanan.dart';
-
+import 'package:intl/intl.dart';
+import 'package:shared_preferences/shared_preferences.dart';
+import '../database/db_helper.dart';
+import '../models/layanan_model.dart';
 import 'input_detail_layanan.dart';
 
 class InputPesananLayanan extends StatefulWidget {
@@ -9,38 +11,9 @@ class InputPesananLayanan extends StatefulWidget {
 }
 
 class _InputPesananLayananState extends State<InputPesananLayanan> {
-  List<Map<String, String>> layananList = [
-    {
-      "name": "Reguler",
-      "price": "7000",
-      "duration": "3",
-      "type": "kiloan",
-      "description": "Ini Deskripsi",
-      "time": "Hari"
-    },
-    {
-      "name": "Kilat",
-      "price": "10000",
-      "duration": "2",
-      "type": "kiloan",
-      "description": "Ini Deskripsi",
-      "time": "Hari"
-    },
-    {
-      "name": "Express",
-      "price": "15000",
-      "duration": "1",
-      "type": "kiloan",
-      "description": "Ini Deskripsi",
-      "time": "Hari"
-    },
-    // Daftar pelanggan lainnya...
-  ];
-
-  List<Map<String, String>> filteredLayananList = [];
-
+  List<Layanan> layananList = [];
+  List<Layanan> filteredLayananList = [];
   TextEditingController searchController = TextEditingController();
-
   final TextEditingController _weightController = TextEditingController();
   final TextEditingController _noteController = TextEditingController();
   double totalPrice = 0;
@@ -49,29 +22,52 @@ class _InputPesananLayananState extends State<InputPesananLayanan> {
   @override
   void initState() {
     super.initState();
-    // Mulai dengan menampilkan seluruh daftar pelanggan
-    filteredLayananList = layananList;
+    _loadLayanan();
   }
 
-  // Fungsi untuk mencari pelanggan berdasarkan nama
-  void searchPelanggan(String query) {
+  Future<void> _loadLayanan() async {
+    SharedPreferences prefs = await SharedPreferences.getInstance();
+    int? userId = prefs.getInt('userId');
+
+    if (userId != null) {
+      final data = await DatabaseHelper().getAllLayanan(userId);
+      setState(() {
+        layananList = data;
+        filteredLayananList = data;
+      });
+    }
+  }
+
+  void searchLayanan(String query) {
     setState(() {
       filteredLayananList = layananList
           .where((layanan) =>
-          layanan["name"]!.toLowerCase().contains(query.toLowerCase()))
+              layanan.namaLayanan.toLowerCase().contains(query.toLowerCase()))
           .toList();
     });
-
   }
-  void _calculatePrice(Map<String, String> layanan) {
+
+  Map<String, dynamic> convertLayananToMap(Layanan layanan) {
+    return {
+      "id": layanan.id,
+      "type": layanan.jenisLayanan,
+      "name": layanan.namaLayanan,
+      "price": layanan.harga,
+      "duration": layanan.durasi,
+      "time": layanan.satuanWaktu,
+      "userId": layanan.userId,
+    };
+  }
+
+  void _calculatePrice(layananMap) {
     setState(() {
       double weight = double.tryParse(_weightController.text) ?? 0;
-      totalPrice = double.parse(layanan["price"]!) * weight; // Menggunakan harga yang dipilih
+      totalPrice = layananMap["price"] * weight;
       isButtonEnabled = weight > 0;
     });
   }
 
-  void showLayananModal(BuildContext context, Map<String, String> layanan) {
+  void showLayananModal(BuildContext context, Map<String, dynamic> layananMap) {
     showModalBottomSheet(
       context: context,
       isScrollControlled: true,
@@ -80,14 +76,16 @@ class _InputPesananLayananState extends State<InputPesananLayanan> {
           height: MediaQuery.of(context).size.height,
           child: SingleChildScrollView(
             child: ConstrainedBox(
-              constraints: BoxConstraints(maxHeight: MediaQuery.of(context).size.height),
+              constraints:
+                  BoxConstraints(maxHeight: MediaQuery.of(context).size.height),
               child: IntrinsicHeight(
                 child: Padding(
                   padding: const EdgeInsets.all(16.0),
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      SizedBox(height: MediaQuery.of(context).size.height * 0.04),
+                      SizedBox(
+                          height: MediaQuery.of(context).size.height * 0.04),
                       // Display selected service details
                       Row(
                         mainAxisAlignment: MainAxisAlignment.spaceBetween,
@@ -95,13 +93,18 @@ class _InputPesananLayananState extends State<InputPesananLayanan> {
                           Column(
                             crossAxisAlignment: CrossAxisAlignment.start,
                             children: [
-                              const Text("Layanan", style: TextStyle(fontSize: 12, color: Colors.grey)),
-                              Text(layanan["name"]!, style: const TextStyle(fontSize: 14)), // Display name
+                              const Text("Layanan",
+                                  style: TextStyle(
+                                      fontSize: 12, color: Colors.grey)),
+                              Text(layananMap["name"]!,
+                                  style: const TextStyle(
+                                      fontSize: 14)), // Display name
                             ],
                           ),
                           Text(
-                            "Rp. ${layanan["price"]!}/kg", // Display price
-                            style: const TextStyle(fontSize: 20, fontWeight: FontWeight.bold),
+                            "Rp. ${NumberFormat("#,##0", "id_ID").format(layananMap["price"]!)}/kg",
+                            style: const TextStyle(
+                                fontSize: 20, fontWeight: FontWeight.bold),
                           ),
                         ],
                       ),
@@ -112,42 +115,60 @@ class _InputPesananLayananState extends State<InputPesananLayanan> {
                           Column(
                             crossAxisAlignment: CrossAxisAlignment.start,
                             children: [
-                              const Text("Jenis layanan", style: TextStyle(fontSize: 12, color: Colors.grey)),
-                              Text(layanan["type"]!, style: const TextStyle(fontSize: 14)), // Display type
+                              const Text("Jenis layanan",
+                                  style: TextStyle(
+                                      fontSize: 12, color: Colors.grey)),
+                              Text(layananMap["type"]!,
+                                  style: const TextStyle(
+                                      fontSize: 14)), // Display type
                             ],
                           ),
                           const SizedBox(width: 20),
                           Column(
                             crossAxisAlignment: CrossAxisAlignment.start,
                             children: [
-                              const Text("Estimasi pengerjaan", style: TextStyle(fontSize: 12, color: Colors.grey)),
-                              Text("${layanan["duration"]} ${layanan["time"]}", style: const TextStyle(fontSize: 14)), // Display duration
+                              const Text("Estimasi pengerjaan",
+                                  style: TextStyle(
+                                      fontSize: 12, color: Colors.grey)),
+                              Text(
+                                  "${layananMap["duration"]} ${layananMap["time"]}",
+                                  style: const TextStyle(
+                                      fontSize: 14)), // Display duration
                             ],
                           ),
                         ],
                       ),
                       const SizedBox(height: 15),
-                      const Text("Deskripsi", style: TextStyle(fontSize: 12, color: Colors.grey)),
-                      Text(layanan["description"]!, style: const TextStyle(fontSize: 14)), // Display description
+                      const Text("Deskripsi",
+                          style: TextStyle(fontSize: 12, color: Colors.grey)),
+                      Text(layananMap["description"] ?? "Tidak ada deskripsi",
+                          style: const TextStyle(
+                              fontSize:
+                                  14)), // Display description or default message
                       const SizedBox(height: 20),
                       const Center(
-                        child: Text("Masukkan kuantitas", style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
+                        child: Text("Masukkan kuantitas",
+                            style: TextStyle(
+                                fontSize: 18, fontWeight: FontWeight.bold)),
                       ),
                       const SizedBox(height: 20),
                       TextField(
                         controller: _weightController,
-                        keyboardType: const TextInputType.numberWithOptions(decimal: true),
+                        keyboardType: const TextInputType.numberWithOptions(
+                            decimal: true),
                         decoration: const InputDecoration(
                           labelText: "Kuantitas",
                           prefixIcon: Icon(Icons.scale),
                           suffixText: "kg",
                           floatingLabelBehavior: FloatingLabelBehavior.never,
-                          helperText: "Gunakan tanda titik untuk menyatakan bilangan desimal. Misal: 7.5",
+                          helperText:
+                              "Gunakan tanda titik untuk menyatakan bilangan desimal. Misal: 7.5",
                           helperMaxLines: 2,
                           border: OutlineInputBorder(),
                         ),
                         onChanged: (value) {
-                          _calculatePrice(layanan); // Panggil perhitungan harga saat kuantitas berubah
+                          _calculatePrice(
+                              layananMap); // Panggil perhitungan harga saat kuantitas berubah
                         },
                       ),
                       const SizedBox(height: 20),
@@ -167,23 +188,27 @@ class _InputPesananLayananState extends State<InputPesananLayanan> {
                       ElevatedButton(
                         onPressed: isButtonEnabled
                             ? () {
-                          Map<String, dynamic> selectedData = {
-                            "layanan": layanan,
-                            "totalPrice": totalPrice,
-                            "weight": double.tryParse(_weightController.text) ?? 0
-                          };
-                          Navigator.pop(context, selectedData);
-                          Navigator.pop(context, selectedData);
-                        }
+                                Map<String, dynamic> selectedData = {
+                                  "layanan": layananMap,
+                                  "totalPrice": totalPrice,
+                                  "weight":
+                                      double.tryParse(_weightController.text) ??
+                                          0
+                                };
+                                Navigator.pop(context, selectedData);
+                                print(selectedData);
+                                Navigator.pop(context, selectedData);
+                              }
                             : null,
                         style: ElevatedButton.styleFrom(
                           minimumSize: const Size(double.infinity, 50),
-                          backgroundColor: isButtonEnabled ? Colors.blueAccent : Colors.grey,
+                          backgroundColor:
+                              isButtonEnabled ? Colors.blue : Colors.grey,
                           textStyle: const TextStyle(fontSize: 18),
                         ),
                         child: Text(
                           isButtonEnabled
-                              ? 'PILIH LAYANAN - Rp ${totalPrice.toStringAsFixed(0)}'
+                              ? 'PILIH LAYANAN - Rp ${NumberFormat("#,##0", "id_ID").format(totalPrice)}'
                               : 'PILIH LAYANAN - Rp 0',
                         ),
                       ),
@@ -203,14 +228,8 @@ class _InputPesananLayananState extends State<InputPesananLayanan> {
     return Scaffold(
       appBar: AppBar(
         title: const Text("Pilih Layanan"),
-        centerTitle: true,
         elevation: 0,
-        leading: IconButton(
-          icon: const Icon(Icons.arrow_back),
-          onPressed: () {
-            Navigator.pop(context); // kembali ke halaman sebelumnya
-          },
-        ),
+        centerTitle: true,
         actions: [
           IconButton(
             icon: const Icon(Icons.add_circle_outline_rounded),
@@ -223,83 +242,78 @@ class _InputPesananLayananState extends State<InputPesananLayanan> {
           ),
         ],
       ),
-      body: Padding(
-        padding: const EdgeInsets.symmetric(vertical: 16.0, horizontal: 0.0),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            // Search Bar untuk mencari nama pelanggan
-            Padding(
-              padding: const EdgeInsets.symmetric(vertical: 0.0, horizontal: 16.0),
-              child: TextField(
-                controller: searchController,
-                onChanged: (value) {
-                  // Panggil fungsi search saat teks berubah
-                  searchPelanggan(value);
-                },
-                decoration: InputDecoration(
-                  hintText: "Cari nama layanan",
-                  prefixIcon: const Icon(Icons.search),
-                  border: OutlineInputBorder(
-                    borderRadius: BorderRadius.circular(10),
-                  ),
+      body: Column(
+        children: [
+          Padding(
+            padding:
+                const EdgeInsets.symmetric(vertical: 8.0, horizontal: 16.0),
+            child: TextField(
+              controller: searchController,
+              onChanged: searchLayanan,
+              decoration: InputDecoration(
+                hintText: "Cari nama layanan",
+                prefixIcon: const Icon(Icons.search),
+                border: OutlineInputBorder(
+                  borderRadius: BorderRadius.circular(10),
                 ),
               ),
             ),
-            const SizedBox(height: 10), // Jarak antara Search Bar dan ListTile
-
-            // List pelanggan yang sudah difilter
-            Expanded(
-              child: ListView.builder(
-                itemCount: filteredLayananList.length,
-                itemBuilder: (context, index) {
-                  return Column(
-                    children: [
-                      ListTile(
-                        leading: const CircleAvatar(
-                          radius: 25,
-                          backgroundColor: Colors.blueAccent,
-                          child: Icon(Icons.local_laundry_service_outlined,
-                              size: 25, color: Colors.white),
-                        ),
-                        title: Text(filteredLayananList[index]["name"]!),
-                        subtitle: Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            Text(
-                              "Rp. ${filteredLayananList[index]["price"]!}",
-                              style: const TextStyle(fontSize: 12),
-                            ), // Harga
-                            Text(
-                              "${filteredLayananList[index]["duration"]} ${filteredLayananList[index]["time"]}",
-                              style: const TextStyle(fontSize: 12),
-                            ), // Estimasi Pengerjaan
-                          ],
-                        ),
-                        trailing: OutlinedButton(
-                          onPressed: () {
-                            showLayananModal(context, filteredLayananList[index]);
-                          },
-                          style: OutlinedButton.styleFrom(
-                            foregroundColor: Colors.white,
-                            backgroundColor: Colors.blueAccent,
-                            side: const BorderSide(color: Colors.blueAccent),
-                          ),
-                          child: const Text("Pilih Layanan",
-                              style: TextStyle(color: Colors.white, fontSize: 12)),
-                        ),
+          ),
+          Expanded(
+            child: filteredLayananList.isEmpty
+                ? Center(
+                    child: Text(
+                      "Belum ada data layanan",
+                      style: TextStyle(
+                        fontSize: 16,
+                        color: Colors.grey[600],
                       ),
-                      const Divider(
-                        color: Colors.grey,
-                        thickness: 1,
-                      )
-                    ],
-                  );
-                },
-              ),
-            ),
-          ],
-        ),
+                    ),
+                  )
+                : ListView.builder(
+                    itemCount: filteredLayananList.length,
+                    itemBuilder: (context, index) {
+                      Layanan layanan = filteredLayananList[index];
+                      return Column(
+                        children: [
+                          ListTile(
+                            leading: const CircleAvatar(
+                              radius: 25,
+                              backgroundColor: Colors.blue,
+                              child: Icon(Icons.local_laundry_service_outlined,
+                                  size: 25, color: Colors.white),
+                            ),
+                            title: Text(layanan.namaLayanan),
+                            subtitle: Text(
+                                "Rp. ${NumberFormat("#,##0", "id_ID").format(layanan.harga)}\n${layanan.durasi} ${layanan.satuanWaktu}"),
+                            trailing: OutlinedButton(
+                              onPressed: () {
+                                final layananMap = convertLayananToMap(
+                                    layanan); // Konversi ke Map
+                                showLayananModal(
+                                    context, layananMap); // Kirim Map ke modal
+                              },
+                              style: OutlinedButton.styleFrom(
+                                foregroundColor: Colors.white,
+                                backgroundColor: Colors.blue,
+                                side:
+                                    const BorderSide(color: Colors.blue),
+                              ),
+                              child: const Text("Pilih Layanan",
+                                  style: TextStyle(
+                                      color: Colors.white, fontSize: 12)),
+                            ),
+                          ),
+                          const Divider(
+                            color: Colors.grey,
+                            thickness: 1,
+                          ),
+                        ],
+                      );
+                    },
+                  ),
+          ),
+        ],
       ),
     );
   }

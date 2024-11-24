@@ -1,62 +1,60 @@
 import 'package:flutter/material.dart';
-import 'package:laundryapp/pages/detail_layanan.dart';
-
-import 'detail_pelanggan.dart';
+import 'package:shared_preferences/shared_preferences.dart';
+import '../database/db_helper.dart';
+import '../models/layanan_model.dart';
+import 'detail_layanan.dart';
 import 'input_detail_layanan.dart';
 
 class InputLayanan extends StatefulWidget {
+  const InputLayanan({super.key});
+
   @override
   State<InputLayanan> createState() => _InputLayananState();
 }
 
 class _InputLayananState extends State<InputLayanan> {
-  List<Map<String, String>> layananList = [
-    {
-      "name": "Reguler",
-      "price": "Rp. 7.000/kg",
-      "duration": "3",
-      "type": "kiloan",
-      "description": "Ini Deskripsi",
-      "time": "Hari"
-    },
-    {
-      "name": "Kilat",
-      "price": "Rp. 10.000/kg",
-      "duration": "2",
-      "type": "kiloan",
-      "description": "Ini Deskripsi",
-      "time": "Hari"
-    },
-    {
-      "name": "Express",
-      "price": "Rp. 15.000",
-      "duration": "1",
-      "type": "kiloan",
-      "description": "Ini Deskripsi",
-      "time": "Hari"
-    },
-    // Daftar pelanggan lainnya...
-  ];
-
-  List<Map<String, String>> filteredLayananList = [];
-
+  List<Layanan> layananList = [];
+  List<Layanan> filteredLayananList = [];
   TextEditingController searchController = TextEditingController();
 
   @override
   void initState() {
     super.initState();
-    // Mulai dengan menampilkan seluruh daftar pelanggan
-    filteredLayananList = layananList;
+    _loadLayanan();
   }
 
-  // Fungsi untuk mencari pelanggan berdasarkan nama
-  void searchPelanggan(String query) {
+  Future<void> _loadLayanan() async {
+    SharedPreferences prefs = await SharedPreferences.getInstance();
+    int? userId = prefs.getInt('userId');
+
+    if (userId != null) {
+      final data = await DatabaseHelper().getAllLayanan(userId);
+      setState(() {
+        layananList = data;
+        filteredLayananList = data;
+      });
+    }
+  }
+
+  void searchLayanan(String query) {
     setState(() {
       filteredLayananList = layananList
           .where((layanan) =>
-              layanan["name"]!.toLowerCase().contains(query.toLowerCase()))
+          layanan.namaLayanan.toLowerCase().contains(query.toLowerCase()))
           .toList();
     });
+  }
+
+  Map<String, dynamic> convertLayananToMap(Layanan layanan) {
+    return {
+      "id": layanan.id,
+      "type": layanan.jenisLayanan,
+      "name": layanan.namaLayanan,
+      "price": layanan.harga,
+      "duration": layanan.durasi,
+      "time": layanan.satuanWaktu,
+      "userId": layanan.userId,
+    };
   }
 
   @override
@@ -68,18 +66,18 @@ class _InputLayananState extends State<InputLayanan> {
         elevation: 0,
         leading: IconButton(
           icon: const Icon(Icons.arrow_back),
-          onPressed: () {
-            Navigator.pop(context); // kembali ke halaman sebelumnya
-          },
+          onPressed: () => Navigator.pop(context),
         ),
         actions: [
           IconButton(
-            icon: const Icon(Icons.add_circle_outline_rounded),
+            icon: const Icon(Icons.add_circle_outline),
             onPressed: () {
               Navigator.push(
-                  context,
-                  MaterialPageRoute(
-                      builder: (context) => InputDetailLayanan()));
+                context,
+                MaterialPageRoute(
+                  builder: (context) => InputDetailLayanan(),
+                ),
+              ).then((_) => _loadLayanan());
             },
           ),
         ],
@@ -89,15 +87,12 @@ class _InputLayananState extends State<InputLayanan> {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            // Search Bar untuk mencari nama pelanggan
             Padding(
-              padding: EdgeInsets.symmetric(vertical: 0.0, horizontal: 16.0),
+              padding:
+              const EdgeInsets.symmetric(vertical: 0.0, horizontal: 16.0),
               child: TextField(
                 controller: searchController,
-                onChanged: (value) {
-                  // Panggil fungsi search saat teks berubah
-                  searchPelanggan(value);
-                },
+                onChanged: searchLayanan,
                 decoration: InputDecoration(
                   hintText: "Cari nama layanan",
                   prefixIcon: const Icon(Icons.search),
@@ -107,59 +102,91 @@ class _InputLayananState extends State<InputLayanan> {
                 ),
               ),
             ),
-            const SizedBox(height: 10), // Jarak antara Search Bar dan ListTile
-
-            // List pelanggan yang sudah difilter
+            const SizedBox(height: 10),
             Expanded(
-              child: ListView.builder(
+              child: filteredLayananList.isEmpty
+                  ? Center(
+                child: Text(
+                  "Belum ada data layanan",
+                  style: TextStyle(
+                    fontSize: 16,
+                    color: Colors.grey[600],
+                  ),
+                ),
+              )
+                  : ListView.builder(
                 itemCount: filteredLayananList.length,
                 itemBuilder: (context, index) {
+                  Layanan layanan = filteredLayananList[index];
                   return Column(
                     children: [
                       GestureDetector(
-                        onTap: () {
-                          Navigator.push(
+                        onTap: () async {
+                          Map<String, dynamic> layananMap =
+                          convertLayananToMap(layanan);
+                          final updatedLayanan = await Navigator.push(
                             context,
                             MaterialPageRoute(
-                              builder: (context) => DetailLayanan(
-                                  layanan: filteredLayananList[index]),
+                              builder: (context) =>
+                                  DetailLayanan(layanan: layananMap),
                             ),
                           );
+
+                          if (updatedLayanan != null) {
+                            setState(
+                                  () {
+                                    // Update layanan di daftar
+                                final index = layananList.indexWhere(
+                                        (layanan) =>
+                                    layanan.id ==
+                                        updatedLayanan['id']);
+                                if (index != -1) {
+                                  layananList[index] = Layanan(
+                                    id: updatedLayanan['id'],
+                                    jenisLayanan: updatedLayanan['type'],
+                                    namaLayanan: updatedLayanan['name'],
+                                    harga: updatedLayanan['price'],
+                                    durasi: updatedLayanan['duration'],
+                                    satuanWaktu: updatedLayanan['time'],
+                                    userId: updatedLayanan['userId'],
+                                  );
+                                }
+                                // Sinkronkan pencarian
+                                searchLayanan(searchController.text);
+                              },
+                            );
+                          }
                         },
                         child: ListTile(
                           leading: const CircleAvatar(
                             radius: 25,
-                            backgroundColor: Colors.blueAccent,
-                            child: Icon(Icons.local_laundry_service_outlined,
-                                size: 25, color: Colors.white),
+                            backgroundColor: Colors.blue,
+                            child: Icon(
+                              Icons.local_laundry_service,
+                              size: 25,
+                              color: Colors.white,
+                            ),
                           ),
-                          title: Text(filteredLayananList[index]["name"]!),
+                          title: Text(layanan.namaLayanan),
                           subtitle: Column(
                             crossAxisAlignment: CrossAxisAlignment.start,
                             children: [
                               Text(
-                                filteredLayananList[index]["price"]!,
+                                "Harga: Rp. ${layanan.harga}",
                                 style: const TextStyle(fontSize: 12),
-                              ), // Harga
+                              ),
                               Text(
-                                "${filteredLayananList[index]["duration"]} ${filteredLayananList[index]["time"]}",
+                                "Durasi: ${layanan.durasi} ${layanan.satuanWaktu}",
                                 style: const TextStyle(fontSize: 12),
-                              ), // Estimasi Pengerjaan
+                              ),
                             ],
-                          ),
-                          trailing: IconButton(
-                            onPressed: () {},
-                            icon: const Icon(
-                              Icons.delete,
-                              color: Colors.red,
-                            ),
                           ),
                         ),
                       ),
                       const Divider(
                         color: Colors.grey,
                         thickness: 1,
-                      )
+                      ),
                     ],
                   );
                 },

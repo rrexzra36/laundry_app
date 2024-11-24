@@ -1,5 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
+import 'package:shared_preferences/shared_preferences.dart';
+
+import '../database/db_helper.dart';
 
 class Laporan extends StatefulWidget {
   const Laporan({super.key});
@@ -10,22 +13,47 @@ class Laporan extends StatefulWidget {
 
 class _LaporanState extends State<Laporan> {
   DateTimeRange? _selectedDateRange;
+  int? _totalPendapatan;
+  final DatabaseHelper _databaseHelper = DatabaseHelper(); // Inisialisasi DatabaseHelper
 
   Future<void> _pickDateRange() async {
-    // Mendapatkan tanggal pertama dan terakhir bulan ini
     DateTime now = DateTime.now();
     DateTime firstDateOfThisMonth = DateTime(now.year, now.month, 1);
     DateTime lastDateOfThisMonth = DateTime.now();
 
     DateTimeRange? newDateRange = await showDateRangePicker(
       context: context,
-      firstDate: firstDateOfThisMonth, // Tanggal pertama bulan ini
-      lastDate: lastDateOfThisMonth,   // Tanggal terakhir bulan ini
+      firstDate: firstDateOfThisMonth,
+      lastDate: lastDateOfThisMonth,
     );
 
     if (newDateRange != null) {
       setState(() {
         _selectedDateRange = newDateRange;
+      });
+
+      // Hitung total pendapatan setelah memilih rentang tanggal
+      await _calculatePendapatan();
+    }
+  }
+
+  Future<void> _calculatePendapatan() async {
+    if (_selectedDateRange != null) {
+      SharedPreferences prefs =
+      await SharedPreferences.getInstance();
+      int? userId = prefs.getInt('userId');
+
+      String startDate =
+      DateFormat('yyyy-MM-dd').format(_selectedDateRange!.start);
+      String endDate = DateFormat('yyyy-MM-dd').format(_selectedDateRange!.end);
+
+      print(startDate);
+      print(endDate);
+
+      // Ambil total pendapatan dari database
+      int total = await _databaseHelper.getTotalPendapatanByTanggal(userId!.toInt(), startDate, endDate);
+      setState(() {
+        _totalPendapatan = total;
       });
     }
   }
@@ -71,7 +99,6 @@ class _LaporanState extends State<Laporan> {
               ),
             ),
             const SizedBox(height: 16),
-            // Jika belum memilih tanggal, tampilkan pesan di tengah halaman
             if (_selectedDateRange == null) ...[
               const Expanded(
                 child: Center(
@@ -83,7 +110,6 @@ class _LaporanState extends State<Laporan> {
                 ),
               ),
             ],
-            // Menampilkan konten lain hanya jika _selectedDateRange sudah dipilih
             if (_selectedDateRange != null) ...[
               const Row(
                 children: [
@@ -111,7 +137,7 @@ class _LaporanState extends State<Laporan> {
                       mainAxisAlignment: MainAxisAlignment.spaceBetween,
                       children: [
                         Text(
-                          '${_selectedDateRange!.start.day} ${_selectedDateRange!.start.month} ${_selectedDateRange!.start.year} - ${_selectedDateRange!.end.day} ${_selectedDateRange!.end.month} ${_selectedDateRange!.end.year}',
+                          '${formatDate(_selectedDateRange!.start)} - ${formatDate(_selectedDateRange!.end)}',
                           style: const TextStyle(color: Colors.grey),
                         ),
                         const Icon(Icons.keyboard_arrow_down),
@@ -124,7 +150,9 @@ class _LaporanState extends State<Laporan> {
                     ),
                     const SizedBox(height: 8),
                     Text(
-                      'Rp 63.000',
+                      _totalPendapatan == null
+                          ? 'Menghitung...'
+                          : 'Rp. ${NumberFormat("#,##0", "id_ID").format(_totalPendapatan)}',
                       style: TextStyle(
                         fontSize: 24,
                         color: Colors.green[800],

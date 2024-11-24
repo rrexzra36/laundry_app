@@ -1,8 +1,54 @@
 import 'package:flutter/material.dart';
 import 'package:laundryapp/pages/detail_profile.dart';
-import 'package:laundryapp/pages/login.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 
-class Setting extends StatelessWidget {
+import '../database/db_helper.dart';
+import 'home.dart';
+
+class Setting extends StatefulWidget {
+  @override
+  State<Setting> createState() => _SettingState();
+}
+
+class _SettingState extends State<Setting> {
+  final DatabaseHelper _databaseHelper =
+  DatabaseHelper(); // Inisialisasi DatabaseHelper
+  String fullName = "";
+  String emailUser = "";
+
+  @override
+  void initState() {
+    super.initState();
+    getFullNameFromPreferences(); // Ambil fullName saat widget diinisialisasi
+    getEmailById();
+  }
+
+  Future<void> getFullNameFromPreferences() async {
+    SharedPreferences prefs = await SharedPreferences.getInstance();
+    String? storedFullName = prefs.getString('fullName');
+
+    if (storedFullName != null) {
+      setState(() {
+        fullName = storedFullName; // Perbarui nilai fullName
+      });
+    }
+  }
+
+  Future<void> getEmailById() async {
+    SharedPreferences prefs = await SharedPreferences.getInstance();
+    int? userId = prefs.getInt('userId');
+
+    String? email = await _databaseHelper.getEmailById(userId!.toInt());
+    if (email == null) {
+      print("Email tidak ditemukan untuk userId: $userId");
+      print(email);
+    } else {
+      setState(() {
+        emailUser = email;
+      });
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -42,7 +88,7 @@ class Setting extends StatelessWidget {
                       ),
                       title: Row(
                         children: [
-                          Text('Ezra'),
+                          Text(fullName.isNotEmpty ? fullName : "User"),
                           SizedBox(width: 8.0),
                           Container(
                             padding:
@@ -56,7 +102,7 @@ class Setting extends StatelessWidget {
                           ),
                         ],
                       ),
-                      subtitle: Text('re.bimantara@gmail.com'),
+                      subtitle: Text(emailUser.toString().isNotEmpty ? emailUser : "Email"),
                       trailing: Icon(Icons.arrow_forward_ios_rounded, size: 16),
                     ),
                   ),
@@ -196,7 +242,7 @@ class Setting extends StatelessWidget {
                       onPressed: () {
                         Navigator.pushReplacement(
                           context,
-                          MaterialPageRoute(builder: (context) => Login()),
+                          MaterialPageRoute(builder: (context) => Home()),
                         );
                       },
                       child: const Text(

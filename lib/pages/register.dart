@@ -92,211 +92,213 @@ class _RegisterState extends State<Register> {
                 ),
               ),
             ),
-            Column(
-              mainAxisSize: MainAxisSize.min,
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Container(
-                  padding: const EdgeInsets.symmetric(
-                    horizontal: 16.0,
-                    vertical: 15.0,
-                  ),
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      GestureDetector(
-                        onTap: () {
-                          Navigator.of(context).pop();
-                        },
-                        child: const Icon(
-                          Icons.arrow_back_ios,
-                          color: Colors.white,
-                        ),
-                      ),
-                      const SizedBox(
-                        height: 20.0,
-                      ),
-                      Text(
-                        "Create your account",
-                        style: Theme.of(context).textTheme.titleLarge?.copyWith(
-                              fontWeight: FontWeight.w600,
-                              color: Colors.white,
-                            ),
-                      )
-                    ],
-                  ),
-                ),
-                const SizedBox(
-                  height: 40.0,
-                ),
-                Flexible(
-                  child: Container(
-                    width: double.infinity,
-                    height: MediaQuery.of(context).size.height,
-                    constraints: BoxConstraints(
-                      minHeight: MediaQuery.of(context).size.height - 180.0,
+            SingleChildScrollView(
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Container(
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 16.0,
+                      vertical: 15.0,
                     ),
-                    decoration: const BoxDecoration(
-                      borderRadius: BorderRadius.only(
-                        topLeft: Radius.circular(30.0),
-                        topRight: Radius.circular(30.0),
-                      ),
-                      color: Colors.white,
-                    ),
-                    padding: const EdgeInsets.all(24.0),
                     child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.stretch,
+                      crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
-
-                        // Full name Section
-                        Text('Fullname'),
-                        SizedBox(height: 5.0),
-                        Container(
-                          height: 48.0,
-                          decoration: BoxDecoration(
-                            color: Colors.white,
-                            borderRadius: BorderRadius.circular(8.0),
-                          ),
-                          child: TextFormField(
-                            controller: _nameController,
-                            decoration: InputDecoration(
-                              floatingLabelBehavior: FloatingLabelBehavior.never,
-                              enabledBorder: OutlineInputBorder(
-                                borderSide: BorderSide(
-                                  color: Color.fromRGBO(74, 77, 84, 0.2),
-                                ),
-                              ),
-                              focusedBorder: OutlineInputBorder(
-                                borderSide: BorderSide(
-                                  color: Constants.primaryColor,
-                                ),
-                              ),
-                              labelText: "Enter your fullname",
-                              hintStyle: TextStyle(
-                                fontSize: 14.0,
-                                color: Color.fromRGBO(105, 108, 121, 0.7),
-                              ),
-                            ),
-                          ),
-                        ),
-                        const SizedBox(height: 15.0),
-
-                        // Email Section
-                        Text('Email'),
-                        SizedBox(height: 5.0),
-                        Container(
-                          height: 48.0,
-                          decoration: BoxDecoration(
-                            color: Colors.white,
-                            borderRadius: BorderRadius.circular(8.0),
-                          ),
-                          child: TextFormField(
-                            controller: _emailController,
-                            decoration: InputDecoration(
-                              floatingLabelBehavior: FloatingLabelBehavior.never,
-                              enabledBorder: OutlineInputBorder(
-                                borderSide: BorderSide(
-                                  color: Color.fromRGBO(74, 77, 84, 0.2),
-                                ),
-                              ),
-                              focusedBorder: OutlineInputBorder(
-                                borderSide: BorderSide(
-                                  color: Constants.primaryColor,
-                                ),
-                              ),
-                              labelText: "Enter your email",
-                              hintStyle: TextStyle(
-                                fontSize: 14.0,
-                                color: Color.fromRGBO(105, 108, 121, 0.7),
-                              ),
-                            ),
-                          ),
-                        ),
-                        const SizedBox(height: 15.0),
-
-                        // Password Sction
-                        Text('Password'),
-                        SizedBox(height: 5.0),
-                        Container(
-                          height: 48.0,
-                          decoration: BoxDecoration(
-                            color: Colors.white,
-                            borderRadius: BorderRadius.circular(8.0),
-                          ),
-                          child: TextFormField(
-                            obscureText: true,
-                            controller: _passwordController,
-                            decoration: InputDecoration(
-                              floatingLabelBehavior: FloatingLabelBehavior.never,
-                              enabledBorder: OutlineInputBorder(
-                                borderSide: BorderSide(
-                                  color: Color.fromRGBO(74, 77, 84, 0.2),
-                                ),
-                              ),
-                              focusedBorder: OutlineInputBorder(
-                                borderSide: BorderSide(
-                                  color: Constants.primaryColor,
-                                ),
-                              ),
-                              labelText: "Enter your password",
-                              hintStyle: TextStyle(
-                                fontSize: 14.0,
-                                color: Color.fromRGBO(105, 108, 121, 0.7),
-                              ),
-                            ),
-                          ),
-                        ),
-                        const SizedBox(height: 15.0),
-
-                        // Confirm Password Section
-                        Text('Confirm Password'),
-                        SizedBox(height: 5.0),
-                        Container(
-                          height: 48.0,
-                          decoration: BoxDecoration(
-                            color: Colors.white,
-                            borderRadius: BorderRadius.circular(8.0),
-                          ),
-                          child: TextFormField(
-                            obscureText: true,
-                            controller: _confirmPasswordController,
-                            decoration: InputDecoration(
-                              floatingLabelBehavior: FloatingLabelBehavior.never,
-                              enabledBorder: OutlineInputBorder(
-                                borderSide: BorderSide(
-                                  color: Color.fromRGBO(74, 77, 84, 0.2),
-                                ),
-                              ),
-                              focusedBorder: OutlineInputBorder(
-                                borderSide: BorderSide(
-                                  color: Constants.primaryColor,
-                                ),
-                              ),
-                              labelText: "Enter your confirm password",
-                              hintStyle: TextStyle(
-                                fontSize: 14.0,
-                                color: Color.fromRGBO(105, 108, 121, 0.7),
-                              ),
-                            ),
-                          ),
-                        ),
-                        const SizedBox(height: 15.0),
-
-                        // Button Register
-                        const SizedBox(height: 20.0),
-                        AppButton(
-                          type: ButtonType.PRIMARY,
-                          text: "Register",
-                          onPressed: () {
-                            registerUser(context);
+                        GestureDetector(
+                          onTap: () {
+                            Navigator.of(context).pop();
                           },
+                          child: const Icon(
+                            Icons.arrow_back_ios,
+                            color: Colors.white,
+                          ),
                         ),
+                        const SizedBox(
+                          height: 20.0,
+                        ),
+                        Text(
+                          "Create your account",
+                          style: Theme.of(context).textTheme.titleLarge?.copyWith(
+                            fontWeight: FontWeight.w600,
+                            color: Colors.white,
+                          ),
+                        )
                       ],
                     ),
                   ),
-                )
-              ],
-            ),
+                  const SizedBox(
+                    height: 40.0,
+                  ),
+                  Flexible(
+                    child: Container(
+                      width: double.infinity,
+                      height: MediaQuery.of(context).size.height,
+                      constraints: BoxConstraints(
+                        minHeight: MediaQuery.of(context).size.height - 180.0,
+                      ),
+                      decoration: const BoxDecoration(
+                        borderRadius: BorderRadius.only(
+                          topLeft: Radius.circular(30.0),
+                          topRight: Radius.circular(30.0),
+                        ),
+                        color: Colors.white,
+                      ),
+                      padding: const EdgeInsets.all(24.0),
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.stretch,
+                        children: [
+
+                          // Full name Section
+                          Text('Fullname'),
+                          SizedBox(height: 5.0),
+                          Container(
+                            height: 48.0,
+                            decoration: BoxDecoration(
+                              color: Colors.white,
+                              borderRadius: BorderRadius.circular(8.0),
+                            ),
+                            child: TextFormField(
+                              controller: _nameController,
+                              decoration: InputDecoration(
+                                floatingLabelBehavior: FloatingLabelBehavior.never,
+                                enabledBorder: OutlineInputBorder(
+                                  borderSide: BorderSide(
+                                    color: Color.fromRGBO(74, 77, 84, 0.2),
+                                  ),
+                                ),
+                                focusedBorder: OutlineInputBorder(
+                                  borderSide: BorderSide(
+                                    color: Constants.primaryColor,
+                                  ),
+                                ),
+                                labelText: "Enter your fullname",
+                                hintStyle: TextStyle(
+                                  fontSize: 14.0,
+                                  color: Color.fromRGBO(105, 108, 121, 0.7),
+                                ),
+                              ),
+                            ),
+                          ),
+                          const SizedBox(height: 15.0),
+
+                          // Email Section
+                          Text('Email'),
+                          SizedBox(height: 5.0),
+                          Container(
+                            height: 48.0,
+                            decoration: BoxDecoration(
+                              color: Colors.white,
+                              borderRadius: BorderRadius.circular(8.0),
+                            ),
+                            child: TextFormField(
+                              controller: _emailController,
+                              decoration: InputDecoration(
+                                floatingLabelBehavior: FloatingLabelBehavior.never,
+                                enabledBorder: OutlineInputBorder(
+                                  borderSide: BorderSide(
+                                    color: Color.fromRGBO(74, 77, 84, 0.2),
+                                  ),
+                                ),
+                                focusedBorder: OutlineInputBorder(
+                                  borderSide: BorderSide(
+                                    color: Constants.primaryColor,
+                                  ),
+                                ),
+                                labelText: "Enter your email",
+                                hintStyle: TextStyle(
+                                  fontSize: 14.0,
+                                  color: Color.fromRGBO(105, 108, 121, 0.7),
+                                ),
+                              ),
+                            ),
+                          ),
+                          const SizedBox(height: 15.0),
+
+                          // Password Sction
+                          Text('Password'),
+                          SizedBox(height: 5.0),
+                          Container(
+                            height: 48.0,
+                            decoration: BoxDecoration(
+                              color: Colors.white,
+                              borderRadius: BorderRadius.circular(8.0),
+                            ),
+                            child: TextFormField(
+                              obscureText: true,
+                              controller: _passwordController,
+                              decoration: InputDecoration(
+                                floatingLabelBehavior: FloatingLabelBehavior.never,
+                                enabledBorder: OutlineInputBorder(
+                                  borderSide: BorderSide(
+                                    color: Color.fromRGBO(74, 77, 84, 0.2),
+                                  ),
+                                ),
+                                focusedBorder: OutlineInputBorder(
+                                  borderSide: BorderSide(
+                                    color: Constants.primaryColor,
+                                  ),
+                                ),
+                                labelText: "Enter your password",
+                                hintStyle: TextStyle(
+                                  fontSize: 14.0,
+                                  color: Color.fromRGBO(105, 108, 121, 0.7),
+                                ),
+                              ),
+                            ),
+                          ),
+                          const SizedBox(height: 15.0),
+
+                          // Confirm Password Section
+                          Text('Confirm Password'),
+                          SizedBox(height: 5.0),
+                          Container(
+                            height: 48.0,
+                            decoration: BoxDecoration(
+                              color: Colors.white,
+                              borderRadius: BorderRadius.circular(8.0),
+                            ),
+                            child: TextFormField(
+                              obscureText: true,
+                              controller: _confirmPasswordController,
+                              decoration: InputDecoration(
+                                floatingLabelBehavior: FloatingLabelBehavior.never,
+                                enabledBorder: OutlineInputBorder(
+                                  borderSide: BorderSide(
+                                    color: Color.fromRGBO(74, 77, 84, 0.2),
+                                  ),
+                                ),
+                                focusedBorder: OutlineInputBorder(
+                                  borderSide: BorderSide(
+                                    color: Constants.primaryColor,
+                                  ),
+                                ),
+                                labelText: "Enter your confirm password",
+                                hintStyle: TextStyle(
+                                  fontSize: 14.0,
+                                  color: Color.fromRGBO(105, 108, 121, 0.7),
+                                ),
+                              ),
+                            ),
+                          ),
+                          const SizedBox(height: 15.0),
+
+                          // Button Register
+                          const SizedBox(height: 20.0),
+                          AppButton(
+                            type: ButtonType.PRIMARY,
+                            text: "Register",
+                            onPressed: () {
+                              registerUser(context);
+                            },
+                          ),
+                        ],
+                      ),
+                    ),
+                  )
+                ],
+              ),
+            )
           ],
         ),
       ),

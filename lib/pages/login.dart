@@ -1,5 +1,7 @@
 import 'package:flutter/material.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 import '../database/db_helper.dart';
+import '../models/user_model.dart';
 import '../utils/constants.dart';
 import '../widgets/app_button.dart';
 import 'bottom_navbar.dart';
@@ -21,11 +23,17 @@ class _LoginState extends State<Login> {
     super.dispose();
   }
 
+  // Fungsi untuk menyimpan userId ke Shared Preferences
+  Future<void> _saveUserIdToPreferences(int userId) async {
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.setInt('userId', userId);
+  }
+
+// Simpan userId setelah login berhasil
   void loginUser(BuildContext context) async {
     String email = _emailController.text.trim();
     String password = _passwordController.text.trim();
 
-    // Validasi input kosong
     if (email.isEmpty || password.isEmpty) {
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(content: Text("Please fill in all fields")),
@@ -33,18 +41,27 @@ class _LoginState extends State<Login> {
       return;
     }
 
-    // Cek email dan password dengan database
     try {
       bool isAuthenticated = await _dbHelper.loginUser(email, password);
 
       if (isAuthenticated) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text("Login successful!")),
-        );
-        Navigator.pushReplacement(
-          context,
-          MaterialPageRoute(builder: (context) => BottomNavBar()),
-        );
+        User? user = await _dbHelper.getUserByEmail(email);
+
+        if (user != null) {
+          // Simpan userId ke SharedPreferences
+          SharedPreferences prefs = await SharedPreferences.getInstance();
+          await prefs.setInt('userId', user.id!);
+          await prefs.setString('fullName', user.fullName);
+
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(content: Text("Login successful!")),
+          );
+
+          Navigator.pushReplacement(
+            context,
+            MaterialPageRoute(builder: (context) => BottomNavBar()),
+          );
+        }
       } else {
         ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(
@@ -62,6 +79,7 @@ class _LoginState extends State<Login> {
       );
     }
   }
+
 
   @override
   Widget build(BuildContext context) {

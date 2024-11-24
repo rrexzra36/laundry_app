@@ -2,14 +2,42 @@ import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
 import 'package:laundryapp/pages/rinican_pesanan.dart';
+import 'package:shared_preferences/shared_preferences.dart';
+
+import '../database/db_helper.dart';
+import '../models/pesanan_model.dart';
 
 class KonfirmasiPesanan extends StatefulWidget {
+  final Map<String, dynamic> pelanggan;
+  final Map<String, dynamic> layanan;
+  final double totalPrice;
+  final double weight;
+
+  // Konstruktor untuk menerima data dari halaman sebelumnya
+  KonfirmasiPesanan({
+    required this.pelanggan,
+    required this.layanan,
+    required this.totalPrice,
+    required this.weight,
+  });
+
   @override
   _KonfirmasiPesananState createState() => _KonfirmasiPesananState();
 }
 
 class _KonfirmasiPesananState extends State<KonfirmasiPesanan> {
-  DateTime _selectedDate = DateTime.now();
+  late DateTime _selectedDate;
+
+  @override
+  void initState() {
+    super.initState();
+
+    // Inisialisasi _selectedDate dengan durasi dari widget.layanan
+    _selectedDate = DateTime.now().add(
+      Duration(days: widget.layanan['layanan']['duration']),
+    );
+  }
+
   TimeOfDay _selectedTime = TimeOfDay.now();
 
   Future<void> _selectDateTime(BuildContext context) async {
@@ -18,7 +46,7 @@ class _KonfirmasiPesananState extends State<KonfirmasiPesanan> {
     TimeOfDay tempTime = _selectedTime;
 
     await showModalBottomSheet(
-      shape: RoundedRectangleBorder(
+      shape: const RoundedRectangleBorder(
         borderRadius: BorderRadius.vertical(top: Radius.circular(15.0)),
       ),
       context: context,
@@ -28,7 +56,7 @@ class _KonfirmasiPesananState extends State<KonfirmasiPesanan> {
             mainAxisAlignment: MainAxisAlignment.center,
             children: [
               Padding(
-                padding: EdgeInsets.symmetric(vertical: 16),
+                padding: const EdgeInsets.symmetric(vertical: 16),
                 child: Container(
                   width: 50,
                   height: 5,
@@ -38,22 +66,21 @@ class _KonfirmasiPesananState extends State<KonfirmasiPesanan> {
                 ),
               ),
 
-              Text(
+              const Text(
                 'Pilih Tanggal',
                 style: TextStyle(
                     fontSize: 16,
                     color: Colors.blue,
                     fontWeight: FontWeight.bold),
               ),
-              SizedBox(height: 8),
+              const SizedBox(height: 8),
 
               // Date Picker
               Expanded(
                 child: CupertinoDatePicker(
                   mode: CupertinoDatePickerMode.date,
-                  initialDateTime: tempDate.isBefore(minimumDate)
-                      ? minimumDate
-                      : tempDate,
+                  initialDateTime:
+                      tempDate.isBefore(minimumDate) ? minimumDate : tempDate,
                   minimumDate: minimumDate,
                   maximumDate: DateTime(2025),
                   onDateTimeChanged: (DateTime newDate) {
@@ -61,16 +88,16 @@ class _KonfirmasiPesananState extends State<KonfirmasiPesanan> {
                   },
                 ),
               ),
-              SizedBox(height: 16),
+              const SizedBox(height: 16),
 
-              Text(
+              const Text(
                 'Pilih Waktu',
                 style: TextStyle(
                     fontSize: 16,
                     color: Colors.blue,
                     fontWeight: FontWeight.bold),
               ),
-              SizedBox(height: 8),
+              const SizedBox(height: 8),
               // Time Picker
               Expanded(
                 child: CupertinoDatePicker(
@@ -84,12 +111,12 @@ class _KonfirmasiPesananState extends State<KonfirmasiPesanan> {
                   ).isBefore(minimumDate)
                       ? minimumDate
                       : DateTime(
-                    tempDate.year,
-                    tempDate.month,
-                    tempDate.day,
-                    tempTime.hour,
-                    tempTime.minute,
-                  ),
+                          tempDate.year,
+                          tempDate.month,
+                          tempDate.day,
+                          tempTime.hour,
+                          tempTime.minute,
+                        ),
                   use24hFormat: true, // Use 24-hour format
                   onDateTimeChanged: (DateTime newTime) {
                     tempTime = TimeOfDay.fromDateTime(newTime);
@@ -97,7 +124,8 @@ class _KonfirmasiPesananState extends State<KonfirmasiPesanan> {
                 ),
               ),
 
-              Padding(padding: EdgeInsets.all(16),
+              Padding(
+                padding: const EdgeInsets.all(16),
                 child: Row(
                   mainAxisAlignment: MainAxisAlignment.spaceEvenly,
                   children: [
@@ -112,7 +140,8 @@ class _KonfirmasiPesananState extends State<KonfirmasiPesanan> {
                         },
                         child: const Text(
                           'Cancel',
-                          style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
+                          style: TextStyle(
+                              fontSize: 16, fontWeight: FontWeight.bold),
                         ),
                       ),
                     ),
@@ -131,7 +160,8 @@ class _KonfirmasiPesananState extends State<KonfirmasiPesanan> {
                         },
                         child: const Text(
                           'Konfirmasi',
-                          style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
+                          style: TextStyle(
+                              fontSize: 16, fontWeight: FontWeight.bold),
                         ),
                       ),
                     ),
@@ -176,21 +206,16 @@ class _KonfirmasiPesananState extends State<KonfirmasiPesanan> {
             width: MediaQuery.of(context).size.width,
             color: Colors.white,
             padding: const EdgeInsets.all(16.0),
-            child: const Column(
+            child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Text(
+                const Text(
                   'Pelanggan',
                   style: TextStyle(color: Colors.grey),
                 ),
-                Text(
-                  'Bima',
-                  style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16),
-                ),
-                Text(
-                  '08816755293',
-                  style: TextStyle(color: Colors.black, fontSize: 14),
-                ),
+                Text(widget.pelanggan['namaPelanggan'] ?? '',
+                    style: const TextStyle(fontWeight: FontWeight.bold)),
+                Text(widget.pelanggan['nomorTelepon'] ?? ''),
               ],
             ),
           ),
@@ -204,49 +229,61 @@ class _KonfirmasiPesananState extends State<KonfirmasiPesanan> {
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Text(
+                const Text(
                   'Rincian Pesanan',
                   style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16),
                 ),
-                Divider(height: 16, thickness: 1),
+                const Divider(height: 16, thickness: 1),
                 Row(
                   mainAxisAlignment: MainAxisAlignment.spaceBetween,
                   children: [
                     Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
-                        Text('Layanan', style: TextStyle(color: Colors.grey)),
-                        Text('Reguler (Kiloan)',
-                            style: TextStyle(fontSize: 14)),
+                        const Text('Layanan',
+                            style: TextStyle(color: Colors.grey)),
+                        Text(
+                            '${widget.layanan['layanan']['name']} (${widget.layanan['layanan']['type']})',
+                            style: const TextStyle(fontSize: 14)),
                       ],
                     ),
                     Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
-                        Text('Kuantitas', style: TextStyle(color: Colors.grey)),
-                        Text('3 kg x Rp 7.000', style: TextStyle(fontSize: 14)),
+                        const Text('Kuantitas',
+                            style: TextStyle(color: Colors.grey)),
+                        Text(
+                            '${widget.weight.toInt()} kg x Rp. ${NumberFormat("#,##0", "id_ID").format(widget.layanan['layanan']['price'])}',
+                            style: const TextStyle(fontSize: 14)),
                       ],
                     ),
                     Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
-                        Text('Total', style: TextStyle(color: Colors.grey)),
-                        Text('Rp 21.000', style: TextStyle(fontSize: 14)),
+                        const Text(
+                          'Total',
+                          style: TextStyle(color: Colors.grey),
+                        ),
+                        Text(
+                          'Rp. ${NumberFormat("#,##0", "id_ID").format(widget.totalPrice.toInt())}',
+                          style: const TextStyle(fontSize: 14),
+                        ),
                       ],
                     ),
                   ],
                 ),
-                Divider(height: 32, thickness: 1),
+                const Divider(height: 32, thickness: 1),
 
                 // Subtotal
                 Row(
                   mainAxisAlignment: MainAxisAlignment.spaceBetween,
                   children: [
-                    Text('Subtotal',
+                    const Text('Subtotal',
                         style: TextStyle(
                             fontSize: 16, fontWeight: FontWeight.bold)),
-                    Text('Rp 21.000',
-                        style: TextStyle(
+                    Text(
+                        'Rp. ${NumberFormat("#,##0", "id_ID").format(widget.totalPrice.toInt())}',
+                        style: const TextStyle(
                             fontSize: 16, fontWeight: FontWeight.bold)),
                   ],
                 ),
@@ -259,7 +296,7 @@ class _KonfirmasiPesananState extends State<KonfirmasiPesanan> {
           Container(
             width: MediaQuery.of(context).size.width,
             color: Colors.white,
-            padding: EdgeInsets.all(16.0),
+            padding: const EdgeInsets.all(16.0),
             child: Row(
               mainAxisAlignment: MainAxisAlignment.spaceBetween,
               children: [
@@ -304,7 +341,7 @@ class _KonfirmasiPesananState extends State<KonfirmasiPesanan> {
                     ),
                     const SizedBox(width: 10),
                     Text(
-                      'Rp. 21000',
+                      'Rp. ${NumberFormat("#,##0", "id_ID").format(widget.totalPrice.toInt())}',
                       style: const TextStyle(
                           fontSize: 20, fontWeight: FontWeight.bold),
                     ),
@@ -317,11 +354,79 @@ class _KonfirmasiPesananState extends State<KonfirmasiPesanan> {
                     style: ElevatedButton.styleFrom(
                       padding: const EdgeInsets.symmetric(vertical: 16),
                     ),
-                    onPressed: () {
+                    onPressed: () async {
+                      // Mendapatkan userId yang login
+                      SharedPreferences prefs =
+                          await SharedPreferences.getInstance();
+                      int? userId = prefs.getInt('userId');
+                      userId ??= 0; // Pastikan userId tidak null
+
+                      // Ambil ID pelanggan dan ID layanan
+                      int pelangganId = widget.pelanggan['id'];
+                      int layananId = widget.layanan['layanan']['id'];
+
+                      // Ambil waktu yang dipilih
+                      TimeOfDay waktu = _selectedTime;
+
+                      // Ambil tanggal saat ini untuk format nota
+                      String tanggalPesan =
+                          DateFormat('ddMMyyyy').format(DateTime.now());
+
+                      // Cari nomor urut terakhir berdasarkan tanggal
+                      String lastNota =
+                          await DatabaseHelper().getLastNota(tanggalPesan);
+                      int nomorUrut = 1;
+
+                      if (lastNota.isNotEmpty) {
+                        // Ambil nomor urut dari nota terakhir, misalnya: INV-22112024-001
+                        RegExp regExp =
+                            RegExp(r'(\d{3})$'); // Menangkap 3 digit terakhir
+                        Match? match = regExp.firstMatch(lastNota);
+
+                        if (match != null) {
+                          nomorUrut = int.parse(match.group(0)!) + 1;
+                        }
+                      }
+
+                      // Format nota baru dengan nomor urut yang increment
+                      String nota =
+                          'INV-$tanggalPesan-${nomorUrut.toString().padLeft(3, '0')}';
+
+                      // Print data yang dikirimkan
+                      print('Pelanggan ID: $pelangganId');
+                      print('Layanan ID: $layananId');
+                      print('Tanggal Pesan: $_selectedDate');
+                      print('Waktu Pesan: ${waktu.format(context)}');
+                      print('Total Harga: ${widget.totalPrice}');
+                      print('Nota: $nota');
+                      print('User ID: $userId');
+
+                      // Buat objek Pesanan
+                      Pesanan pesanan = Pesanan(
+                        pelangganId: pelangganId,
+                        layananId: layananId,
+                        tanggal: _selectedDate,
+                        tanggalSelesai: DateTime.now(),
+                        waktu: waktu,
+                        berat: widget.weight.toInt(),
+                        totalPrice: widget.totalPrice.toInt(),
+                        status: 0,
+                        nota: nota, // Setel nota
+                        userId: userId,
+                      );
+
+                      // Simpan pesanan ke database
+                      int pesananId =
+                          await DatabaseHelper().tambahPesanan(pesanan);
+
+                      // Lanjutkan ke halaman rincian pesanan atau lainnya
                       Navigator.push(
-                          context,
-                          MaterialPageRoute(
-                              builder: (context) => RincianPesanan()));
+                        context,
+                        MaterialPageRoute(
+                          builder: (context) =>
+                              RincianPesanan(pesananId: pesananId),
+                        ),
+                      );
                     },
                     icon: const Icon(Icons.check_circle),
                     label: const Text(
