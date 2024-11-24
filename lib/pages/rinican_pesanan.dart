@@ -58,7 +58,7 @@ class _RincianPesananState extends State<RincianPesanan> {
   
   void launchWhatsApp() async {
     String phone = "62${_pesananData['nomorTelpon']}";
-    String message = "Halo ${_pesananData['pelangganNama']}!👋,\n\nKami dari *_Laundree_* ingin menginformasikan bahwa pesanan laundry Anda ${_getStatusText(_pesananData['status'])}. Berikut detailnya:\n\n   🧾 Nota: ${_pesananData['nota']}\n   🧺 Status: ${_getStatusText(_pesananData['status'])}\n   💵 Total Pembayaran: Rp. ${NumberFormat("#,##0", "id_ID").format(_pesananData['totalHarga'])}\n   ⏰ Jam Operasional: 08.00 - 17.00 WIB\n\nJika ada pertanyaan atau memerlukan layanan tambahan, jangan ragu untuk menghubungi kami! Terima kasih telah menggunakan *_Laundree_*. 😊\n\n_Semoga hari Anda menyenangkan!_";
+    String message = "Halo ${_pesananData['pelangganNama']}!👋,\n\nKami dari *_Laundree_* ingin menginformasikan bahwa pesanan laundry Anda ${_getStatusText(_pesananData['status'])}. Berikut detailnya informasinya:\n\n   🧾 Nota: ${_pesananData['nota']}\n   🧺 Status: ${_getStatusText(_pesananData['status'])}\n   💵 Total Pembayaran: Rp. ${NumberFormat("#,##0", "id_ID").format(_pesananData['totalHarga'])}\n   ⏰ Jam Operasional: 08.00 - 17.00 WIB\n\nJika ada pertanyaan atau memerlukan layanan tambahan, jangan ragu untuk menghubungi kami! Terima kasih telah menggunakan *_Laundree_*. 😊\n\n_Semoga hari Anda menyenangkan!_";
 
     final Uri url = Uri.parse(
         "https://wa.me/$phone?text=${Uri.encodeComponent(message)}");
